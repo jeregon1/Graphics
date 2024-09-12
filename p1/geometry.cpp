@@ -124,7 +124,7 @@ private:
 public:
     Transform() {}
 
-    static Coordinate translate(const Direction& axis, const Point& point) {
+    static Coordinate translate(const Coordinate& axis, const Point& point) {
         Matrix4x4 matrix = {{
             {1, 0, 0, axis.x},
             {0, 1, 0, axis.y},
@@ -180,7 +180,6 @@ public:
         return Direction(result[0], result[1], result[2]);
     }
 
-
     static Coordinate scale(double factor_x, double factor_y, double factor_z, const Coordinate& c) {
 
         Matrix4x4 matrix = {{
@@ -213,18 +212,3 @@ public:
         return oss.str();
     }
 };
-
-int main() {
-    // Example usage
-    Coordinate base = Coordinate(1, 2, 3);
-    Direction dir1(4, 5, 6);
-    Direction dir2(7, 8, 9);
-    Point point(base, 10, 11, 12);
-    Sphere sphere(point, 13, 14);
-
-    cout << "Point: " << point.toString() << endl;
-    cout << "Direction 1: " << dir1.toString() << endl;
-    cout << "Sphere:\n" << sphere.toString() << endl;
-
-    return 0;
-}
