@@ -16,21 +16,40 @@ In the programming language of your choice, implement:
 #include <cmath>
 #include <sstream>
 #include <cassert>
+#include <array>
 
 using namespace std;
 
-class Base {
+class Coordinate {
 public:
     double x, y, z;
 
-    Base(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
+    Coordinate(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
+    
+    double& operator[](int index) {
+        switch (index) {
+            case 0: return x;
+            case 1: return y;
+            case 2: return z;
+            default: throw out_of_range("Index out of range accessing Coordinate");
+        }
+    }
+
+    virtual string toString() const {
+        ostringstream oss;
+        oss << "(" << x << ", " << y << ", " << z << ")";
+        return oss.str();
+    }
+
+    friend ostream& operator<<(ostream& os, const Coordinate& c) {
+        return os << c.toString();
+    }
 };
 
-class Direction {
+class Direction : public Coordinate {
 public:
-    double x, y, z;
 
-    Direction(double x = 0, double y = 0, double z = 0) : x(x), y(y), z(z) {}
+    Direction(double x = 0, double y = 0, double z = 0) : Coordinate{x, y, z} {}
 
     Direction operator+(const Direction& other) const {
         return Direction(x + other.x, y + other.y, z + other.z);
@@ -53,8 +72,7 @@ public:
     }
 
     Direction normalize() const {
-        double magnitude = mod();
-        return *this / magnitude;
+        return *this / mod();
     }
 
     double dot(const Direction& other) const {
@@ -62,166 +80,150 @@ public:
     }
 
     Direction cross(const Direction& other) const {
-        return Direction(y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x);
+        return Direction(y * other.z - z * other.y, 
+                         z * other.x - x * other.z, 
+                         x * other.y - y * other.x);
     }
 
-    double operator[](int index) {
-        assert (index >= 0 && index < 3);
-        if (index == 0) return x;
-        if (index == 1) return y;
-        if (index == 2) return z;
-    }
-
-    string toString() const {
-        ostringstream oss;
-        oss << "(" << x << ", " << y << ", " << z << ")";
-        return oss.str();
-    }
-
-    // Overload the << operator
-    friend ostream& operator<<(ostream& os, const Point& point) {
-        os << point.base.x << " + (" << point.direction.x << ", " << point.direction.y << ", " << point.direction.z << ")";
-        return os;
-    }
 };
 
-class Point {
+class Point : public Coordinate {
 public:
-    Base base;
-    Direction direction;
+    Coordinate base;
 
-    Point(const Base& base, const Direction& direction) : base(base), direction(direction) {}
+    Point(const Coordinate& base, double x = 0, double y = 0, double z = 0) : Coordinate{x, y, z}, base(base) {}
 
     double dot(const Point& other) const {
-        return direction.dot(other.direction);
+        return (x - base.x) * (other.x - other.base.x) + 
+               (y - base.y) * (other.y - other.base.y) + 
+               (z - base.z) * (other.z - other.base.z);
     }
 
-    double operator[](int index) {
-        return direction[index];
-    }
-
-    string toString() const {
+     string toString() const override {
         ostringstream oss;
-        oss << base.x << " + (" << direction.x << ", " << direction.y << ", " << direction.z << ")";
+        oss << base.x << " + " << Coordinate::toString();
         return oss.str();
     }
 
-    // Overload the << operator
-    friend ostream& operator<<(ostream& os, const Point& point) {
-        os << point.base.x << " + (" << point.direction.x << ", " << point.direction.y << ", " << point.direction.z << ")";
-        return os;
-    }
 };
 
-#include <array>
-class Transform  {
+class Transform {
+    using Matrix4x4 = array<array<double, 4>, 4>;
 
-    using matrix4x4 = array<array<double, 4>, 4>;
-    private:
-        mamtrix4x4& multiply(const mamtrix4x4& matrix1, const double[4] vector) {
-            
-            double result[4][4] = {0};
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    result[i][j] += matrix1[i][j] * vector[j];
-                }
+private:
+    static array<double, 4> multiplyMatrixByVector(const Matrix4x4& matrix, const double vector[4]) {
+        array<double, 4> result = {0, 0, 0, 0};
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                result[i] += matrix[i][j] * vector[j];
             }
-
-            return result;
         }
+        return result;
+    }
 
-    public:
+public:
+    Transform() {}
 
-        Transform() {}
-        
-        
+    static Coordinate translate(const Direction& axis, const Point& point) {
+        Matrix4x4 matrix = {{
+            {1, 0, 0, axis.x},
+            {0, 1, 0, axis.y},
+            {0, 0, 1, axis.z},
+            {0, 0, 0, 1}
+        }};
 
-        Point translate(const Direction& axis, const Point& point) {
-            double matrix[4][4] = {
-                {1, 0, 0, axis.x},
-                {0, 1, 0, axis.y},
-                {0, 0, 1, axis.z},
-                {0, 0, 0, 1}
-            };
-            // Multiply the matrix by the point
-            double result[4] = {0, 0, 0, 0};
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    result[i] += matrix[i][j] * point.direction[j];
-                }
-            }
+        double vector[4] = {point.x, point.y, point.z, 1};
+        array<double, 4> result = multiplyMatrixByVector(matrix, vector);
 
-            return Point(Base(result[0], result[1], result[2]), point.direction);
-        }
+        return Point(result[0], result[1], result[2]);
+    }
 
-        Direction rotate_x(int theta, Direction direction) {
-            const double matrix[4][4]  = {
-                {1, 0, 0, 0},
-                {0, cos(theta), -sin(theta), 0},
-                {0, sin(theta), cos(theta), 0},
-                {0, 0, 0, 1}
-            };
+    static Coordinate rotate_x(int theta, const Direction& direction) {
+        Matrix4x4 matrix = {{
+            {1, 0, 0, 0},
+            {0, cos(theta), -sin(theta), 0},
+            {0, sin(theta), cos(theta), 0},
+            {0, 0, 0, 1}
+        }};
 
-            // Multiply the matrix by the point
-            double result[4] = {0, 0, 0, 0};
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    result[i] += matrix[i][j] * direction[j];
-                }
-            }
+        double vector[4] = {direction.x, direction.y, direction.z, 1};
+        array<double, 4> result = multiplyMatrixByVector(matrix, vector);
 
-        }
+        return Direction(result[0], result[1], result[2]);
+    }
 
-        Direction rotate_y(int theta) {
+    static Coordinate rotate_y(int theta, const Direction& direction) {
+        Matrix4x4 matrix = {{
+            {cos(theta), 0, sin(theta), 0},
+            {0, 1, 0, 0},
+            {-sin(theta), 0, cos(theta), 0},
+            {0, 0, 0, 1}
+        }};
 
-        }
+        double vector[4] = {direction.x, direction.y, direction.z, 1};
+        array<double, 4> result = multiplyMatrixByVector(matrix, vector);
 
-        Direction rotate_z(int theta) {
+        return Direction(result[0], result[1], result[2]);
+    }
 
-        }
+    static Coordinate rotate_z(int theta, const Direction& direction) {
+        Matrix4x4 matrix = {{
+            {cos(theta), -sin(theta), 0, 0},
+            {sin(theta), cos(theta), 0, 0},
+            {0, 0, 1, 0},
+            {0, 0, 0, 1}
+        }};
 
-        Direction rotate(int theta, Direction  direction) {
-            Direction normalizedDirection = direction.normalize();
-            Transform auxx = rotate_x(normalizedDirection.x * theta);
-            Transform auxy = rotate_y(normalizedDirection.y * theta);
-            Transform auxz = rotate_z(normalizedDirection.z * theta);
-            return auxx.multiply(auxy.multiply(auxz));
-        }
+        double vector[4] = {direction.x, direction.y, direction.z, 1};
+        array<double, 4> result = multiplyMatrixByVector(matrix, vector);
+
+        return Direction(result[0], result[1], result[2]);
+    }
 
 
-        Transform scale() {
+    static Coordinate scale(double factor_x, double factor_y, double factor_z, const Coordinate& c) {
 
+        Matrix4x4 matrix = {{
+            {factor_x, 0, 0, 0},
+            {0, factor_y, 0, 0},
+            {0, 0, factor_z, 0},
+            {0, 0, 0, 1}
+        }};
+
+        double vector[4] = {c.x, c.y, c.z, 1};
+        array<double, 4> result = multiplyMatrixByVector(matrix, vector);
+
+        return Coordinate(result[0], result[1], result[2]);
         }
 };
 
 class Sphere {
 public:
     Point base;
-    Direction inclinacion;
-    Direction azimut;
+    double inclinacion, azimut;
 
-    Sphere(const Point& base, const Direction& inclinacion, const Direction& azimut)
+    Sphere(const Point& base, const double& inclinacion, const double& azimut)
         : base(base), inclinacion(inclinacion), azimut(azimut) {}
 
     string toString() const {
         ostringstream oss;
         oss << "Base: " << base.toString() << "\n"
-            << "Inclinacion: " << inclinacion.toString() << "\n"
-            << "Azimut: " << azimut.toString();
+            << "Inclinacion: " << inclinacion << "\n"
+            << "Azimut: " << azimut;
         return oss.str();
     }
 };
 
 int main() {
     // Example usage
-    Base base(1, 2, 3);
+    Coordinate base = Coordinate(1, 2, 3);
     Direction dir1(4, 5, 6);
     Direction dir2(7, 8, 9);
-    Point point(base, dir1);
-    Sphere sphere(point, dir1, dir2);
+    Point point(base, 10, 11, 12);
+    Sphere sphere(point, 13, 14);
 
     cout << "Point: " << point.toString() << endl;
-    cout << "Matrix multiplication:\n" << (mat1 * mat2).toString() << endl;
+    cout << "Direction 1: " << dir1.toString() << endl;
     cout << "Sphere:\n" << sphere.toString() << endl;
 
     return 0;

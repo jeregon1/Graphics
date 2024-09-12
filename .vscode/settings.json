@@ -3,6 +3,8 @@
         "*.c": "c",
         "*.jj": "java",
         "cmath": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "iosfwd": "cpp",
+        "functional": "cpp"
     }
 }
