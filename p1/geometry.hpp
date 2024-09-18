@@ -9,11 +9,13 @@
 
 using namespace std;
 
+using Matrix4x4 = array<array<double, 4>, 4>;
+
 class Coordinate {
 public:
     double x, y, z;
 
-    Coordinate(double x = 0, double y = 0, double z = 0);
+    Coordinate(double x, double y, double z);
 
     double& operator[](int index);
 
@@ -24,7 +26,7 @@ public:
 
 class Direction : public Coordinate {
 public:
-    Direction(double x = 0, double y = 0, double z = 0);
+    Direction(double x, double y, double z);
 
     Direction operator+(const Direction& other) const;
     Direction operator-(const Direction& other) const;
@@ -40,7 +42,7 @@ class Point : public Coordinate {
 public:
     Coordinate base;
 
-    Point(const Coordinate& base, double x = 0, double y = 0, double z = 0);
+    Point(const Coordinate& base, double x, double y, double z);
 
     double dot(const Point& other) const;
 
