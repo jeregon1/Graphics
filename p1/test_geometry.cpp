@@ -11,7 +11,6 @@ void test_translate() {
     Direction axis(1, 2, 3);
     Point point(Coordinate(0, 0, 0), 4, 5, 6);
     Coordinate result = Transform::translate(axis, point);
-    cout << result[0] << endl;
     assert(result.x == 5);
     assert(result.y == 7);
     assert(result.z == 9);

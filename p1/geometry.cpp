@@ -99,7 +99,7 @@ double Point::dot(const Point& other) const {
             (z - base.z) * (other.z - other.base.z);
 }
 
-    string Point::toString() const {
+string Point::toString() const {
     ostringstream oss;
     oss << base.x << " + " << Coordinate::toString();
     return oss.str();
@@ -132,7 +132,7 @@ Coordinate Transform::translate(const Coordinate& axis, const Point& point) {
     double vector[4] = {point.x, point.y, point.z, 1};
     array<double, 4> result = Transform::multiplyMatrixByVector(matrix, vector);
 
-    return Point(result[0], result[1], result[2]);
+    return Coordinate(result[0], result[1], result[2]);
 }
 
 Coordinate Transform::rotate_x(int theta, const Direction& direction) {
