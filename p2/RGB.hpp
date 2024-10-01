@@ -13,6 +13,8 @@
 struct RGB {
     float r, g, b;
 
+    static constexpr float tolerance = 1e-6;
+
     RGB() : r(0), g(0), b(0) {}
     RGB(float r, float g, float b) : r(r), g(g), b(b) {}
     RGB(const RGB &rgb) : r(rgb.r), g(rgb.g), b(rgb.b) {}
@@ -33,7 +35,8 @@ struct RGB {
         return RGB(r / rgb.r, g / rgb.g, b / rgb.b);
     }
 
-    RGB operator+(float value) const {
+    template <typename T>
+    RGB operator+(T value) const {
         return RGB(r + value, g + value, b + value);
     }
 
@@ -47,6 +50,18 @@ struct RGB {
 
     RGB operator/(float value) const {
         return RGB(r / value, g / value, b / value);
+    }
+
+    RGB pow(float value) const {
+        return RGB(std::pow(r, value), std::pow(g, value), std::pow(b, value));
+    }
+
+    float max() const {
+        return std::max({r, g, b});
+    }
+
+    float min() const {
+        return std::min({r, g, b});
     }
 
     RGB& operator+=(const RGB &rgb) {
@@ -82,7 +97,9 @@ struct RGB {
     }
 
     bool operator==(const RGB &rgb) const {
-        return r == rgb.r && g == rgb.g && b == rgb.b;
+        return abs(r - rgb.r) < tolerance 
+            && abs(g - rgb.g) < tolerance 
+            && abs(b - rgb.b) < tolerance;
     }
 
     bool operator!=(const RGB &rgb) const {
@@ -108,3 +125,7 @@ struct RGB {
         return is;
     }
 };
+
+inline RGB round(RGB pixel) {
+    return RGB(std::round(pixel.r), std::round(pixel.g), std::round(pixel.b));
+}

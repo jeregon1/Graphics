@@ -11,11 +11,15 @@
     - Clamp + Gamma
  */
 
-
 #pragma once
 
-#include "toneMapping.h"
+#include "Image.hpp"
 
-using namespace std;
+#define GAMMA 2.2
 
-
+void clamp(Image& image, float max = 1);
+void equalization(Image& image, float V = 0);
+void equalizationClamp(Image& image, float max = 1);
+void gamma(Image& image, float gammaValue = GAMMA);
+void clampGamma(Image& image, float max = 1, float gammaValue = GAMMA);
+void reinhard(Image& img, float key = 0.18, float Lwhite = 1);

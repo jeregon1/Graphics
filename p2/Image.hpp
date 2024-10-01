@@ -1,14 +1,9 @@
 /*
- * ppmReaderWriter.hpp
+ * Image.hpp
  * Date: 2024/09/30
  * Author: Jesús López Ansón, 839922
  * Author: Pablo terés Pueyo, 843350
- * Description: Definición de operadores de ToneMapping
-    - Clamp
-    - Equalization
-    - Clamp + Equalization
-    - Gamma
-    - Clamp + Gamma
+ * Description: Definition of Image class
  */
 
 #pragma once
@@ -25,9 +20,11 @@
 
 using namespace std;
 
-#define MAX 18.35
 
 struct Image {
+
+   static constexpr float MEMORY_MAX_COLOR_RESOLUTION = 18.35;
+   static constexpr float DISK_MAX_COLOR_RESOLUTION = 2e30;
 
    int width, height;
    vector<RGB> pixels;
@@ -36,15 +33,17 @@ struct Image {
 
    Image(int width, int height) : width(width), height(height) {}
 
-   Image(int width, int height, vector<RGB>& pixels) : width(width), height(height), pixels(pixels) {}
+   Image(int width, int height, vector<RGB> pixels) : width(width), height(height), pixels(pixels) {}
 
-   Image(const Image &image) : width(image.width), height(image.height), pixels(image.pixels) {}
+   Image(const string& PPMfilename);
 
-   Image(string PPMfilename) {
-      *this = readPPM(PPMfilename);
-   }
+   float max() const;
 
-   static Image readPPM(string filename);
+   static Image readPPM(const string& path);
 
-   void writePPM(string filename, float maxColor);
+   void writePPM(const string& path, float maxColor = DISK_MAX_COLOR_RESOLUTION, float realMaxColor = MEMORY_MAX_COLOR_RESOLUTION) const;
+
+   static Image readBMP(const string& path);
+
+   void writeBMP(const string& path) const;
 };
