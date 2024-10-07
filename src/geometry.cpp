@@ -26,7 +26,7 @@ using namespace std;
  * Coordinates *
  ***************/
 
-Coordinate::Coordinate(float x = 0, float y = 0, float z = 0) : x(x), y(y), z(z) {}
+Coordinate::Coordinate(float x, float y, float z) : x(x), y(y), z(z) {}
 
 float& Coordinate::operator[](int index) {
     switch (index) {
@@ -47,11 +47,33 @@ ostream& operator<<(ostream& os, const Coordinate& c) {
     return os << c.toString();
 }
 
+/*********
+ * Point *
+ *********/
+
+Point::Point(const Coordinate& base, float x, float y, float z) : base(base), Coordinate{x, y, z} {}
+
+float Point::dot(const Point& other) const {
+    return (x - base.x) * (other.x - other.base.x) + 
+            (y - base.y) * (other.y - other.base.y) + 
+            (z - base.z) * (other.z - other.base.z);
+}
+
+Direction Point::operator-(const Point& p2) const {
+    return Direction(x - p2.x, y - p2.y, z - p2.z);
+}
+
+string Point::toString() const {
+    ostringstream oss;
+    oss << base.x << " + " << Coordinate::toString();
+    return oss.str();
+}
+
 /*************
  * Direction *
  *************/
 
-Direction::Direction(float x = 0, float y = 0, float z = 0) : Coordinate{x, y, z} {}
+Direction::Direction(float x, float y, float z) : Coordinate{x, y, z} {}
 
 Direction Direction::operator+(const Direction& other) const {
     return Direction(x + other.x, y + other.y, z + other.z);
@@ -67,6 +89,10 @@ Direction Direction::operator*(float scalar) const {
 
 Direction Direction::operator/(float scalar) const {
     return Direction(x / scalar, y / scalar, z / scalar);
+}
+
+Point Direction::operator+(const Point& point) const {
+    return Point(point.base, x + point.x, y + point.y, z + point.z);
 }
 
 float Direction::mod() const {
@@ -85,24 +111,6 @@ Direction Direction::cross(const Direction& other) const {
     return Direction(y * other.z - z * other.y, 
                         z * other.x - x * other.z, 
                         x * other.y - y * other.x);
-}
-
-/*********
- * Point *
- *********/
-
-Point::Point(const Coordinate& base, float x = 0, float y = 0, float z = 0) : Coordinate{x, y, z}, base(base) {}
-
-float Point::dot(const Point& other) const {
-    return (x - base.x) * (other.x - other.base.x) + 
-            (y - base.y) * (other.y - other.base.y) + 
-            (z - base.z) * (other.z - other.base.z);
-}
-
-string Point::toString() const {
-    ostringstream oss;
-    oss << base.x << " + " << Coordinate::toString();
-    return oss.str();
 }
 
 /*************
@@ -189,19 +197,3 @@ Coordinate Transform::scale(float factor_x, float factor_y, float factor_z, cons
 
     return Coordinate(result[0], result[1], result[2]);
 }
-
-/**********
- * Sphere *
- **********/
-
-Sphere::Sphere(const Point& base, const float& inclinacion, const float& azimut)
-    : base(base), inclinacion(inclinacion), azimut(azimut) {}
-
-string Sphere::toString() const {
-    ostringstream oss;
-    oss << "Base: " << base.toString() << "\n"
-        << "Inclinacion: " << inclinacion << "\n"
-        << "Azimut: " << azimut;
-    return oss.str();
-}
-

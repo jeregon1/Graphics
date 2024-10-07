@@ -49,7 +49,8 @@
         "streambuf": "cpp",
         "typeinfo": "cpp",
         "ctime": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "optional": "cpp"
     },
     "C_Cpp.default.compilerPath": "/usr/bin/g++"
 }
