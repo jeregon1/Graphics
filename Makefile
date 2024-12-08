@@ -4,7 +4,7 @@ CXX = g++
 # Compiler flags
 CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude
 
-SRCS = src/geometry.cpp src/Image.cpp src/toneMapping.cpp tests/test.cpp tests/test_geometry.cpp
+SRCS = $(wildcard src/*.cpp) test/test_raytracing.cpp
 
 OBJS = $(SRCS:src/%.cpp=build/%.o)
 

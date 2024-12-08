@@ -23,8 +23,8 @@ using namespace std;
 
 struct Image {
 
-   static constexpr float MEMORY_COLOR_RESOLUTION = 18.35;
-   static constexpr float DISK_COLOR_RESOLUTION = 2e30;
+   static constexpr float MEMORY_COLOR_RESOLUTION = 255;
+   static constexpr float DISK_COLOR_RESOLUTION = 255*255;
 
    int width, height;
    vector<RGB> pixels;

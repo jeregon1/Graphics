@@ -1,8 +1,11 @@
 #pragma once
 
 #include <optional>
+#include <vector>
+#include <memory>
 
 #include "geometry.hpp"
+#include "RGB.hpp"
 
 using namespace std;
 
@@ -34,6 +37,53 @@ public:
     virtual string toString() const = 0;
 
     virtual optional<Intersection> intersect(const Ray& ray) const = 0;    
+};
+
+class Scene {
+public:
+    vector<shared_ptr<Object3D>> objects;
+
+    void addObject(const shared_ptr<Object3D>& object) {
+        objects.push_back(object);
+    }
+
+    optional<Intersection> intersect(const Ray& ray) const {
+        optional<Intersection> closestIntersection;
+        for (const auto& object : objects) {
+            auto intersection = object->intersect(ray);
+            if (intersection && (!closestIntersection || intersection->distance < closestIntersection->distance)) {
+                closestIntersection = intersection;
+            }
+        }
+        return closestIntersection;
+    }
+
+    string toString() const {
+        string result;
+        for (const auto& object : objects) {
+            result += object->toString() + "\n";
+        }
+        return result;
+    }
+};
+
+class PinholeCamera {
+public:
+
+    PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int samples, int width, int height)
+        : origin(origin), left(left), up(up), forward(forward), samples(samples), width(width), height(height) {}
+
+    vector<RGB> render(const Scene& scene) const;
+
+private:
+
+    Point origin;
+    Direction left, up, forward;
+    int samples, width, height;
+
+    Ray generateRay(int x, int y) const;
+    RGB traceRay(const Ray& ray, const Scene& scene) const;
+
 };
 
 class Sphere : public Object3D {

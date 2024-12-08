@@ -21,7 +21,7 @@ Image::Image(const string& filename){
     } else {
         cerr << "Invalid file extension in file " << filename << ". Found " << extension << " instead of ppm or bmp" << endl;
     }
-    *this = readPPM(filename);
+    //*this = readPPM(filename);
 }
 
 float Image::max() const {
@@ -104,7 +104,7 @@ void Image::writePPM(const string& path, float diskColorRes) const {
     file << width << " " << height << "\n";
     file << "#MAX=" << memoryColorResolution << "\n";
     file << (int) diskColorRes << "\n";
-
+    cout << fixed << setprecision(0); // Sin decimales
     file << fixed << setprecision(0); // Sin decimales
     float maxColorRatio = diskColorRes / memoryColorResolution;
     for (int i = 0; i < height; i++) {
