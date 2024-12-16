@@ -23,27 +23,23 @@ using namespace std;
 
 struct Image {
 
-   static constexpr float MEMORY_COLOR_RESOLUTION = 255;
-   static constexpr float DISK_COLOR_RESOLUTION = 255*255;
-
    int width, height;
    vector<RGB> pixels;
-   float memoryColorResolution;
 
    Image() {}
 
-   Image(int width, int height, float memoryColorRes = MEMORY_COLOR_RESOLUTION) 
-         : width(width), height(height), memoryColorResolution(memoryColorRes) {}
+   Image(int width, int height) 
+         : width(width), height(height) {}
 
-   Image(int width, int height, vector<RGB> pixels, float memoryColorRes = MEMORY_COLOR_RESOLUTION) 
-         : width(width), height(height), pixels(pixels), memoryColorResolution(memoryColorRes) {}
+   Image(int width, int height, vector<RGB> pixels) 
+         : width(width), height(height), pixels(pixels) {}
 
    Image(const string& path);
 
    float max() const;
 
    static Image readPPM(const string& path);
-   void writePPM(const string& path, float diskColorRes = DISK_COLOR_RESOLUTION) const;
+   void writePPM(const string& path) const;
 
    static Image readBMP(const string& path);
    void writeBMP(const string& path) const;

@@ -11,7 +11,9 @@ vector<RGB> PinholeCamera::render(const Scene& scene) const {
         for (int x = 0; x < width; ++x) {
             RGB accumulatedColor(0, 0, 0);
             for (int i = 0; i < samples; ++i) {
-                Ray ray = generateRay(x, y);
+                float u = static_cast<float>(x) + static_cast<float>(rand()) / RAND_MAX;
+                float v = static_cast<float>(y) + static_cast<float>(rand()) / RAND_MAX;
+                Ray ray = generateRay(u, v);
                 accumulatedColor = accumulatedColor + traceRay(ray, scene);
             }
             image[y * width + x] = accumulatedColor / samples;
@@ -21,14 +23,9 @@ vector<RGB> PinholeCamera::render(const Scene& scene) const {
     return image;
 }
 
-Ray PinholeCamera::generateRay(int x, int y) const {
-    float aspectRatio = static_cast<float>(width) / height;
-    float px = (2 * ((x + 0.5) / width) - 1) * aspectRatio;
-    float py = (1 - 2 * ((y + 0.5) / height));
-
-    Direction direction = (left * px + up * py - forward).normalize();
+Ray PinholeCamera::generateRay(float x, float y) const {
+    Direction direction = (left * x + up * y - forward).normalize();
     return Ray(origin, direction);
-
 }
 
 // TODO: Coger la emisión de la intersección

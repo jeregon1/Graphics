@@ -83,10 +83,10 @@ Image Image::readPPM(const string& path) {
     }
 
     file.close();
-    return Image(width, height, pixels, memoryColorResolution);
+    return Image(width, height, pixels);
 }
 
-void Image::writePPM(const string& path, float diskColorRes) const {
+void Image::writePPM(const string& path) const {
     // If the path is not direct, get the filename for the comment in the file
     string filename = path;
     size_t found = path.find_last_of("/\\");
@@ -102,16 +102,15 @@ void Image::writePPM(const string& path, float diskColorRes) const {
     file << "P3\n";
     file << "# " << filename << "\n";
     file << width << " " << height << "\n";
-    file << "#MAX=" << memoryColorResolution << "\n";
-    file << (int) diskColorRes << "\n";
-    cout << fixed << setprecision(0); // Sin decimales
+
+    // De momento lo hardcodeamos a 255 para comprobar que funciona
+    file << "255" << "\n";
     file << fixed << setprecision(0); // Sin decimales
-    float maxColorRatio = diskColorRes / memoryColorResolution;
     for (int i = 0; i < height; i++) {
         int j = i * width;
-        file << round(pixels[j] * maxColorRatio); // First element without left padding
+        file << round(pixels[j] * 255); // First element without left padding
         for (j = j + 1; j < (i + 1) * width; j++) {
-            file << "     " << round(pixels[j] * maxColorRatio);
+            file << "     " << round(pixels[j] * 255);
         }
         file << "\n";
     }
@@ -173,7 +172,7 @@ Image Image::readBMP(const string& path) {
             file.read(reinterpret_cast<char*>(&b), sizeof(b));
             file.read(reinterpret_cast<char*>(&g), sizeof(g));
             file.read(reinterpret_cast<char*>(&r), sizeof(r));
-            image.pixels[y * image.width + x] = RGB(r, g, b) / 255.0f * Image::MEMORY_COLOR_RESOLUTION;
+            image.pixels[y * image.width + x] = RGB(r, g, b) / 255.0f;
         }
         file.ignore(padding);
     }
@@ -217,7 +216,7 @@ void Image::writeBMP(const string& path) const {
     const int padding = (4 - (width * (infoHeader.bitCount / 8)) % 4) % 4;
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            RGB pixel_normalized = pixels[y * width + x] / this->memoryColorResolution;
+            RGB pixel_normalized = pixels[y * width + x];
             uint16_t r = static_cast<uint16_t>(pixel_normalized.r * 65535);
             uint16_t g = static_cast<uint16_t>(pixel_normalized.g * 65535);
             uint16_t b = static_cast<uint16_t>(pixel_normalized.b * 65535);

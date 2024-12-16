@@ -81,7 +81,7 @@ private:
     Direction left, up, forward;
     int samples, width, height;
 
-    Ray generateRay(int x, int y) const;
+    Ray generateRay(float x, float y) const;
     RGB traceRay(const Ray& ray, const Scene& scene) const;
 
 };
