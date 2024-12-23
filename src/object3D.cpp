@@ -1,13 +1,39 @@
 
 #include "../include/object3D.hpp"
 
-
 /*******
  * Ray *
  *******/
 
 Point Ray::at(float t) const {
     return direction * t + origin;
+}
+
+/*********
+ * Scene *
+ *********/
+
+void Scene::addObject(const shared_ptr<Object3D>& object) {
+        objects.push_back(object);
+    }
+
+optional<Intersection> Scene::intersect(const Ray& ray) const {
+    optional<Intersection> closestIntersection;
+    for (const auto& object : objects) {
+        auto intersection = object->intersect(ray);
+        if (intersection && (!closestIntersection || intersection->distance < closestIntersection->distance)) {
+            closestIntersection = intersection;
+        }
+    }
+    return closestIntersection;
+}
+
+string Scene::toString() const {
+    string result;
+    for (const auto& object : objects) {
+        result += object->toString() + "\n";
+    }
+    return result;
 }
 
 /**********
@@ -48,7 +74,7 @@ optional<Intersection> Sphere::intersect(const Ray& r) const {
 
         // Return the closest intersection point
         t = min(t1, t2);
-        return Intersection(t, r.at(t), (r.at(t) - center).normalize());
+        return Intersection(t, r.at(t), (r.at(t) - center).normalize(), material);
     }
 }
 
@@ -59,27 +85,28 @@ optional<Intersection> Sphere::intersect(const Ray& r) const {
 // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-plane-and-ray-disk-intersection.html
 optional<Intersection> Plane::intersect(const Ray& r) const {
     float denominator = normal.dot(r.direction);
-
+    
     // If the ray is parallel to the plane, there is no intersection
-    if (denominator < EPSILON)
+    if (abs(denominator) < EPSILON)
         return nullopt;
 
+    Point base = normal * d;
     float t = normal.dot(base - r.origin) / denominator;
 
     // If the intersection point is behind the ray origin, there is no intersection
     if (t < 0)
         return nullopt;
 
-    return Intersection(t, r.at(t), normal);
+    return Intersection(t, r.at(t), normal, material);
 }
 
 float Plane::distance(const Point& point) const {
-    return normal.dot(point - base);
+    return normal.dot(point - normal*d);
 }
 
 string Plane::toString() const {
     ostringstream oss;
-    oss << "Base: " << base << "\n"
+    oss << "Base: " << normal*d << "\n"
         << "Normal: " << normal;
     return oss.str();
 }

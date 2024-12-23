@@ -15,9 +15,10 @@ struct Intersection {
     float distance;
     Point point;
     Direction normal;
+    RGB material;
 
-    Intersection(float distance, const Point& point, const Direction& normal):
-        distance(distance), point(point), normal(normal) {}
+    Intersection(float distance, const Point& point, const Direction& normal, const RGB& material = RGB(1, 1, 1)) :
+        distance(distance), point(point), normal(normal), material(material) {}
 };
 
 class Ray {
@@ -34,37 +35,23 @@ public:
 
 class Object3D {
 public:
-    virtual string toString() const = 0;
 
-    virtual optional<Intersection> intersect(const Ray& ray) const = 0;    
+    RGB material = RGB(1, 1, 1);
+
+    Object3D(const RGB& material = RGB(1, 1, 1)) : material(material) {}
+
+    virtual string toString() const = 0;
+    virtual optional<Intersection> intersect(const Ray& ray) const = 0;   
+    
 };
 
 class Scene {
 public:
     vector<shared_ptr<Object3D>> objects;
 
-    void addObject(const shared_ptr<Object3D>& object) {
-        objects.push_back(object);
-    }
-
-    optional<Intersection> intersect(const Ray& ray) const {
-        optional<Intersection> closestIntersection;
-        for (const auto& object : objects) {
-            auto intersection = object->intersect(ray);
-            if (intersection && (!closestIntersection || intersection->distance < closestIntersection->distance)) {
-                closestIntersection = intersection;
-            }
-        }
-        return closestIntersection;
-    }
-
-    string toString() const {
-        string result;
-        for (const auto& object : objects) {
-            result += object->toString() + "\n";
-        }
-        return result;
-    }
+    void addObject(const shared_ptr<Object3D>& object);
+    optional<Intersection> intersect(const Ray& ray) const;
+    string toString() const;
 };
 
 class PinholeCamera {
@@ -92,8 +79,8 @@ public:
     float radius;
     float inclinacion, azimut;
 
-    Sphere(const Point& base, const float& radius) : 
-        center(base), radius(radius) {}
+    Sphere(const Point& base, const float& radius, const RGB& material = RGB(1, 1, 1)) : 
+        Object3D(material), center(base), radius(radius) {}
 
     optional<Intersection> intersect(const Ray& ray) const;
 
@@ -102,11 +89,12 @@ public:
 
 class Plane : public Object3D {
 public:
-    Point base;
-    Direction normal;
 
-    Plane(const Point& base, const Direction& normal) :
-        base(base), normal(normal) {}
+    Direction normal;
+    int d;
+
+    Plane(const Direction& normal, const int d = 1, const RGB& material = RGB(1, 1, 1)) :
+        Object3D(material), normal(normal), d(d) {}
 
     optional<Intersection> intersect(const Ray& ray) const;
 
