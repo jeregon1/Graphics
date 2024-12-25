@@ -51,7 +51,7 @@ ostream& operator<<(ostream& os, const Coordinate& c) {
  * Point *
  *********/
 
-Point::Point(const Coordinate& base, float x, float y, float z) : base(base), Coordinate{x, y, z} {}
+Point::Point(float x, float y, float z, const Coordinate& base) : Coordinate{x, y, z}, base(base) {}
 
 float Point::dot(const Point& other) const {
     return (x - base.x) * (other.x - other.base.x) + 
@@ -67,6 +67,10 @@ string Point::toString() const {
     ostringstream oss;
     oss << base.x << " + " << Coordinate::toString();
     return oss.str();
+}
+
+Point Point::operator*(float scalar) const {
+    return Point{x * scalar, y * scalar, z * scalar};
 }
 
 /*************
@@ -92,7 +96,7 @@ Direction Direction::operator/(float scalar) const {
 }
 
 Point Direction::operator+(const Point& point) const {
-    return Point(point.base, x + point.x, y + point.y, z + point.z);
+    return Point(x + point.x, y + point.y, z + point.z, point.base);
 }
 
 float Direction::mod() const {

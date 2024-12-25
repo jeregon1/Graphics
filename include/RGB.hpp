@@ -59,11 +59,11 @@ struct RGB {
     }
 
     float max() const {
-        return std::max({r, g, b});
+        return std::max(std::max(r, g), b);
     }
 
     float min() const {
-        return std::min({r, g, b});
+        return std::min(r, std::min(g, b));
     }
 
     RGB& operator+=(const RGB &rgb) {

@@ -29,12 +29,12 @@ class Point : public Coordinate {
 public:
     Coordinate base;
 
-    Point(const Coordinate& base = Coordinate(), float x = 0, float y = 0, float z = 0);
+    Point(float x = 0, float y = 0, float z = 0, const Coordinate& base = Coordinate());
 
     float dot(const Point& other) const;
 
     Direction operator-(const Point& p2) const;
-
+    Point operator*(float scalar) const;
     string toString() const override;
 };
 

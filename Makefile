@@ -2,7 +2,7 @@
 # Compiler
 CXX = g++
 # Compiler flags
-CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude
+CXXFLAGS = -g --debug -O0 -std=c++20 -Wall -Wextra -Iinclude
 
 SRCS = $(wildcard src/*.cpp) test/test_raytracing.cpp
 

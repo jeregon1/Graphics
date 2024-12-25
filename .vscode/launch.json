@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/test",
             "args": [],
-            "stopAtEntry": true,
+            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,

@@ -11,12 +11,14 @@ vector<RGB> PinholeCamera::render(const Scene& scene) const {
         for (int x = 0; x < width; x++) {
             RGB accumulatedColor(0, 0, 0);
             for (int i = 0; i < samples; i++) {
-                float u = static_cast<float>(x) + static_cast<float>(rand()) / RAND_MAX;
-                float v = static_cast<float>(y) + static_cast<float>(rand()) / RAND_MAX;
+                float u = static_cast<float>(x) - (width / 2) + static_cast<float>(rand()) / RAND_MAX;
+                float v = static_cast<float>(y) - (height / 2) + static_cast<float>(rand()) / RAND_MAX;
                 Ray ray = generateRay(u, v);
                 accumulatedColor = accumulatedColor + traceRay(ray, scene);
             }
-            image[y * width + x] = accumulatedColor / samples;
+            if (accumulatedColor != RGB(0, 0, 0)) {
+                image[y * width + x] = accumulatedColor / samples; 
+            }
         }
     }
 
@@ -24,7 +26,7 @@ vector<RGB> PinholeCamera::render(const Scene& scene) const {
 }
 
 Ray PinholeCamera::generateRay(float x, float y) const {
-    Direction direction = (left * x + up * y - forward).normalize();
+    Direction direction = (left * x + up * y - forward);
     return Ray(origin, direction);
 }
 

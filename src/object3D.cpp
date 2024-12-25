@@ -90,7 +90,7 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     if (abs(denominator) < EPSILON)
         return nullopt;
 
-    Point base = normal * d;
+    Point base = Point(normal.x, normal.y, normal.z) * d;
     float t = normal.dot(base - r.origin) / denominator;
 
     // If the intersection point is behind the ray origin, there is no intersection
@@ -101,7 +101,7 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
 }
 
 float Plane::distance(const Point& point) const {
-    return normal.dot(point - normal*d);
+    return normal.dot(point - Point(normal.x, normal.y, normal.z) * d);
 }
 
 string Plane::toString() const {
