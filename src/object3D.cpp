@@ -48,11 +48,42 @@ string Sphere::toString() const {
 }
 
 /*
-Implicit equation: f(x, y, z) = (x - c.x)^2 + (y - c.y)^2 + (z - c.z)^2 - r^2
 Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection.html
 */
 optional<Intersection> Sphere::intersect(const Ray& r) const {
-    Direction oc = r.origin - center;
+    Direction oc = center - r.origin;
+    float tca = oc.dot(r.direction);
+
+    if (tca < 0) {
+        return nullopt;
+    }
+
+    float d2 = oc.dot(oc) - tca * tca;
+
+    if (d2 > radius * radius) { 
+        return nullopt;
+    }
+
+    float thc = sqrt(radius * radius - d2);
+    float t0 = tca - thc;
+    float t1 = tca + thc;
+
+    if (t0 < 0 && t1 < 0) {
+        return nullopt;
+    }
+
+    float t = (t0 < t1) ? t0 : t1;
+
+    if (t < 0) {
+        t = (t0 > t1) ? t0 : t1;
+        if (t < 0) {
+            return nullopt;
+        }
+    }
+
+    return Intersection(t, r.at(t), (r.at(t) - center).normalize(), material);
+
+    /*
     float a = r.direction.dot(r.direction);
     float b = 2.0f * oc.dot(r.direction);
     float c = oc.dot(oc) - radius * radius;
@@ -76,6 +107,7 @@ optional<Intersection> Sphere::intersect(const Ray& r) const {
         t = min(t1, t2);
         return Intersection(t, r.at(t), (r.at(t) - center).normalize(), material);
     }
+    */
 }
 
 /*********

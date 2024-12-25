@@ -23,8 +23,8 @@ int main() {
 
     // Spheres
     // Estas intersecciones funcionan pero se detecta rarote
-    //scene.addObject(make_shared<Sphere>(Point(-0.5, -0.7, 0.25), 0.3)); // Left sphere
-    //scene.addObject(make_shared<Sphere>(Point(0.5, -0.7, -0.25), 0.3)); // Right sphere
+    scene.addObject(make_shared<Sphere>(Point(-0.5, -0.7, 0.25), 0.3)); // Left sphere
+    scene.addObject(make_shared<Sphere>(Point(0.5, -0.7, -0.25), 0.3)); // Right sphere
 
     // Camera           Origin,             Up,               Left,                 Forward,        Samples, Width, Height
     PinholeCamera camera(Point(0, 0, -0.9), Direction(0, 1, 0), Direction(-1, 0, 0), Direction(0, 0, 3), 10, 256, 256);
