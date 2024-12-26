@@ -1,4 +1,3 @@
-
 #include "../include/object3D.hpp"
 
 /*******
@@ -122,7 +121,7 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     if (abs(denominator) < EPSILON)
         return nullopt;
 
-    Point base = Point(normal.x, normal.y, normal.z) * d;
+    Point base = Point(normal.x, normal.y, normal.z) * distance;
     float t = normal.dot(base - r.origin) / denominator;
 
     // If the intersection point is behind the ray origin, there is no intersection
@@ -132,13 +131,13 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     return Intersection(t, r.at(t), normal, material);
 }
 
-float Plane::distance(const Point& point) const {
-    return normal.dot(point - Point(normal.x, normal.y, normal.z) * d);
+float Plane::distanceTo(const Point& point) const {
+    return normal.dot(point - Point(normal.x, normal.y, normal.z) * distance);
 }
 
 string Plane::toString() const {
     ostringstream oss;
-    oss << "Base: " << normal*d << "\n"
+    oss << "Base: " << normal*distance << "\n"
         << "Normal: " << normal;
     return oss.str();
 }

@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "geometry.hpp"
+#include "Image.hpp"
 #include "RGB.hpp"
 
 using namespace std;
@@ -60,7 +61,7 @@ public:
     PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int samples, int width, int height)
         : origin(origin), left(left), up(up), forward(forward), samples(samples), width(width), height(height) {}
 
-    vector<RGB> render(const Scene& scene) const;
+    Image render(const Scene& scene) const;
 
 private:
 
@@ -91,15 +92,15 @@ class Plane : public Object3D {
 public:
 
     Direction normal;
-    int d;
+    int distance;
 
-    Plane(const Direction& normal, const int d = 1, const RGB& material = RGB(1, 1, 1)) :
-        Object3D(material), normal(normal), d(d) {}
+    Plane(const Direction& normal, const int distance = 1, const RGB& material = RGB(1, 1, 1)) :
+        Object3D(material), normal(normal), distance(distance) {}
 
     optional<Intersection> intersect(const Ray& ray) const;
 
     // Returns the distance from the plane to a point
-    float distance(const Point& point) const;
+    float distanceTo(const Point& point) const;
 
     string toString() const;
 };

@@ -4,6 +4,7 @@ CXX = g++
 # Compiler flags
 CXXFLAGS = -g --debug -O0 -std=c++20 -Wall -Wextra -Iinclude
 
+# SRCS = $(wildcard src/*.cpp) test/test_intersect.cpp
 SRCS = $(wildcard src/*.cpp) test/test_raytracing.cpp
 
 OBJS = $(SRCS:src/%.cpp=build/%.o)

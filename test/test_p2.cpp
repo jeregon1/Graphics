@@ -14,7 +14,7 @@ using namespace std;
 void test_readWritePPM(const string& file) {
     Image img = Image::readPPM(file);
     
-    img.writePPM(ppmTestFileCopy, 10000000);
+    img.writePPM(ppmTestFileCopy);
 
     // Check if the file was created
     ifstream fileStream(ppmTestFileCopy);
@@ -40,31 +40,31 @@ void test_readWritePPM(const string& file) {
 void testClamp(const string& path) {
     Image image = Image::readPPM(path);
     clamp(image);
-    image.writePPM("clamp.ppm", 10000000);
+    image.writePPM("clamp.ppm");
 }
 
 void testEqualization(const string& path) {
     Image image = Image::readPPM(path);
     equalization(image);
-    image.writePPM("equalized.ppm", 10000000);
+    image.writePPM("equalized.ppm");
 }
 
 void testEqualizationClamp(const string& path) {
     Image image = Image::readPPM(path);
     equalizationClamp(image);
-    image.writePPM("equalizedClamp.ppm", 10000000);
+    image.writePPM("equalizedClamp.ppm");
 }
 
 void testGamma(const string& path) {
     Image image = Image::readPPM(path);
     gamma(image);
-    image.writePPM("gamma.ppm", 10000000);
+    image.writePPM("gamma.ppm");
 }
 
 void testClampGamma(const string& path) {
     Image image = Image::readPPM(path);
     clampGamma(image);
-    image.writePPM("clampGamma.ppm", 10000000);
+    image.writePPM("clampGamma.ppm");
 }
 
 void test_toneMapping(const string& path) {
