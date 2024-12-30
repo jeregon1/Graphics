@@ -121,8 +121,8 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     if (abs(denominator) < EPSILON)
         return nullopt;
 
-    Point base = Point(normal.x, normal.y, normal.z) * distance;
-    float t = normal.dot(base - r.origin) / denominator;
+    Point base = Point(normal.x, normal.y, normal.z) * distance; // Point of the plane
+    float t = normal.dot(base - r.origin) / denominator; // Distance from the ray origin to the intersection point
 
     // If the intersection point is behind the ray origin, there is no intersection
     if (t < 0)

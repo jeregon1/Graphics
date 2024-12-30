@@ -25,11 +25,11 @@ int main() {
     // scene.addObject(make_shared<Sphere>(Point(-0.5, -0.7, 0.25), 0.3)); // Left sphere
     scene.addObject(make_shared<Sphere>(Point(0.5, -0.7, -0.25), 0.3)); // Right sphere
 
-    // Camera           Origin,             Up,               Left,                 Forward,        Samples, Width, Height
-    PinholeCamera camera(Point(0, 0, -0.9), Direction(0, 1, 0), Direction(-1, 0, 0), Direction(0, 0, 3), 20, 256, 256);
+    // Camera           Origin,             Up,               Left,                 Forward,           Width, Height
+    PinholeCamera camera(Point(0, 0, -0.9), Direction(0, 1, 0), Direction(-1, 0, 0), Direction(0, 0, 3), 256, 256);
 
     // Render
-    Image image = camera.render(scene);
+    Image image = camera.render(scene, 8);
     image.writePPM("output.ppm");
     image.writeBMP("output.bmp");
 

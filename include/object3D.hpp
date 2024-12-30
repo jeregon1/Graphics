@@ -28,7 +28,7 @@ public:
     Direction direction;
 
     Ray(const Point& origin, const Direction& direction):
-        origin(origin), direction(direction) {}
+        origin(origin), direction(direction.normalize()) {}
 
     // Returns the point at a distance t from the origin
     Point at(float t) const;
@@ -37,7 +37,7 @@ public:
 class Object3D {
 public:
 
-    RGB material = RGB(1, 1, 1);
+    RGB material;
 
     Object3D(const RGB& material = RGB(1, 1, 1)) : material(material) {}
 
@@ -57,11 +57,11 @@ public:
 
 class PinholeCamera {
 public:
+ 
+    PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
+        : origin(origin), left(left.normalize()), up(up.normalize()), forward(forward), width(width), height(height) {}
 
-    PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int samples, int width, int height)
-        : origin(origin), left(left), up(up), forward(forward), samples(samples), width(width), height(height) {}
-
-    Image render(const Scene& scene) const;
+    Image render(const Scene& scene, unsigned samplesPerPixel) const;
 
 private:
 
@@ -71,6 +71,7 @@ private:
 
     Ray generateRay(float x, float y) const;
     RGB traceRay(const Ray& ray, const Scene& scene) const;
+    RGB calculatePixelColor(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
 
 };
 
@@ -95,7 +96,7 @@ public:
     int distance;
 
     Plane(const Direction& normal, const int distance = 1, const RGB& material = RGB(1, 1, 1)) :
-        Object3D(material), normal(normal), distance(distance) {}
+        Object3D(material), normal(normal.normalize()), distance(distance) {}
 
     optional<Intersection> intersect(const Ray& ray) const;
 
