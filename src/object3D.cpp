@@ -17,14 +17,14 @@ void Scene::addObject(const shared_ptr<Object3D>& object) {
     }
 
 optional<Intersection> Scene::intersect(const Ray& ray) const {
-    optional<Intersection> closestIntersection;
+    optional<Intersection> closest_intersection = nullopt;
     for (const auto& object : objects) {
         auto intersection = object->intersect(ray);
-        if (intersection && (!closestIntersection || intersection->distance < closestIntersection->distance)) {
-            closestIntersection = intersection;
+        if (intersection && (!closest_intersection || intersection->distance < closest_intersection->distance)) {
+            closest_intersection = intersection;
         }
     }
-    return closestIntersection;
+    return closest_intersection;
 }
 
 string Scene::toString() const {
@@ -50,6 +50,7 @@ string Sphere::toString() const {
 Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection.html
 */
 optional<Intersection> Sphere::intersect(const Ray& r) const {
+    
     Direction oc = center - r.origin;
     float tca = oc.dot(r.direction);
 
@@ -81,8 +82,9 @@ optional<Intersection> Sphere::intersect(const Ray& r) const {
     }
 
     return Intersection(t, r.at(t), (r.at(t) - center).normalize(), material);
-
+    
     /*
+    Direction oc = center - r.origin;
     float a = r.direction.dot(r.direction);
     float b = 2.0f * oc.dot(r.direction);
     float c = oc.dot(oc) - radius * radius;

@@ -12,6 +12,12 @@ using namespace std;
 
 #define EPSILON 1e-6
 
+static bool const dummy = (srand(time(NULL)), true);
+
+inline float rand0_1() {
+  return (float) rand() / (RAND_MAX);
+}
+
 struct Intersection {
     float distance;
     Point point;
@@ -52,12 +58,17 @@ public:
 
     void addObject(const shared_ptr<Object3D>& object);
     optional<Intersection> intersect(const Ray& ray) const;
+    void sortObjectsByDistanceToCamera(const Point& cameraPosition);
     string toString() const;
 };
 
 class PinholeCamera {
 public:
  
+    PinholeCamera(const Point& origin) : PinholeCamera(origin, 50, 256, 256) {};
+
+    PinholeCamera(const Point& origin, const int FOV, const int width, const int height);
+
     PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
         : origin(origin), left(left.normalize()), up(up.normalize()), forward(forward), width(width), height(height) {}
 
@@ -67,7 +78,7 @@ private:
 
     Point origin;
     Direction left, up, forward;
-    int samples, width, height;
+    int width, height;
 
     Ray generateRay(float x, float y) const;
     RGB traceRay(const Ray& ray, const Scene& scene) const;

@@ -114,7 +114,7 @@ void Image::writePPM(const string& path) const {
         }
         file << "\n";
     }
-
+    cout << "Image written to " << path << endl;
     file.close();
 }
 
@@ -142,6 +142,7 @@ struct BMPInfoHeader {
 };
 #pragma pack(pop)
 
+// TODO: Corregir función porque no se abre el archivo .bmp
 Image Image::readBMP(const string& path) {
     ifstream file(path, ios::binary);
     if (!file.is_open()) {
@@ -190,7 +191,6 @@ void Image::writeBMP(const string& path) const {
 
     BMPHeader header;
     BMPInfoHeader infoHeader;
-    unsigned bitsPerColor = 16;
 
     header.fileType = 0x4D42;
     header.fileSize = sizeof(header) + sizeof(infoHeader) + width * height * 6; // 6 bytes per pixel
@@ -202,7 +202,7 @@ void Image::writeBMP(const string& path) const {
     infoHeader.width = width;
     infoHeader.height = height;
     infoHeader.planes = 1;
-    infoHeader.bitCount = bitsPerColor * 3; // 48 bits per pixel
+    infoHeader.bitCount = 24; 
     infoHeader.compression = 0;
     infoHeader.sizeImage = 0;
     infoHeader.xPixelsPerMeter = 0;

@@ -6,6 +6,20 @@
 
 using namespace std;
 
+PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height) 
+: origin(origin), width(width), height(height) {
+
+    float aspectRatio = static_cast<float>(width) / height;
+    float halfFOV = tan(FOV * 0.5 * (M_PI / 180)); // Convert FOV to radians and then take the tangent
+    float halfWidth = halfFOV;
+    float halfHeight = halfWidth / aspectRatio;
+
+    left = Direction(-1, 0, 0) * halfWidth;
+    up = Direction(0, 1, 0) * halfHeight;
+    forward = Direction(0, 0, 3); 
+}
+
+
 Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel) const {
     vector<RGB> pixels(height * width);
 
@@ -15,7 +29,7 @@ Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel) const 
             float normalizedX = static_cast<float>(x) - (width / 2);
             // Calculate the color of the pixel at (x, y)
             RGB pixelColor = calculatePixelColor(scene, normalizedX, normalizedY, samplesPerPixel);
-            pixels[y * width + x] = pixelColor;
+            pixels[y * height + x] = pixelColor;
         }
     }
 
@@ -23,16 +37,13 @@ Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel) const 
 }
 
 RGB PinholeCamera::calculatePixelColor(const Scene& scene, float x, float y, unsigned samplesPerPixel) const {
-    static random_device rd;
-    static mt19937 gen(rd());
-    static uniform_real_distribution<float> dis(0.0, 1.0);
 
     RGB accumulatedColor(0, 0, 0);
 
     for (unsigned i = 0; i < samplesPerPixel; i++) { // Example for image (100x100), x = 0, y = 0, samplesPerPixel = 1
         // Generate a random offset for anti-aliasing
-        float x_offset = x + dis(gen); // -50.5
-        float y_offset = y + dis(gen); // -50.5
+        float x_offset = x + rand0_1(); // -50.5
+        float y_offset = y + rand0_1(); // -50.5
 
         // Generate a ray through the pixel
         Ray ray = generateRay(x_offset, y_offset);
@@ -47,7 +58,7 @@ RGB PinholeCamera::calculatePixelColor(const Scene& scene, float x, float y, uns
 
 Ray PinholeCamera::generateRay(float x, float y) const {
     // Calculate the direction of the ray
-    Direction direction = (left * x + up * y - forward);
+    Direction direction = (left * x + up * y + forward);
     return Ray(origin, direction.normalize());
 }
 
@@ -56,7 +67,7 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     auto intersection = scene.intersect(ray);
 
     // Return the color of the intersected material, or black if no intersection
-    if (intersection.has_value()) {
+    if (intersection) {
         return intersection->material;
     }
     return RGB(0, 0, 0);
