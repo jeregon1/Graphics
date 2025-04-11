@@ -14,6 +14,9 @@ Point Ray::at(float t) const {
 
 void Scene::addObject(const shared_ptr<Object3D>& object) {
         objects.push_back(object);
+        if (dynamic_pointer_cast<PointLight>(object)) {
+            lightIndex.push_back(objects.size()-1);
+        }
     }
 
 optional<Intersection> Scene::intersect(const Ray& ray) const {
@@ -35,6 +38,12 @@ string Scene::toString() const {
     return result;
 }
 
+/***************
+ * Point Light *
+ ***************/
+
+
+ 
 /**********
  * Sphere *
  **********/

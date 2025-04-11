@@ -52,13 +52,26 @@ public:
     
 };
 
+class PointLight : public Object3D{
+public:
+
+    Point center;
+
+    // Hay que sobreescribir el material porque es el valor de emisión y no puede ser (1, 1, 1)
+    PointLight(const Point& center, const RGB& material ) : material(material), center(center) {}
+
+private:
+    
+}
+
 class Scene {
 public:
     vector<shared_ptr<Object3D>> objects;
 
     void addObject(const shared_ptr<Object3D>& object);
     optional<Intersection> intersect(const Ray& ray) const;
-    void sortObjectsByDistanceToCamera(const Point& cameraPosition);
+    void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
+    vector<shared_ptr<PointLight>> getLights();
     string toString() const;
 };
 

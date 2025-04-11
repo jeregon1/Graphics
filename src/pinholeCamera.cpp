@@ -68,6 +68,17 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
 
     // Return the color of the intersected material, or black if no intersection
     if (intersection) {
+
+        int lightAmount = scene.lightIndex.size();
+        for (int lightIndex = 0; lightIndex < lightAmount; lightIndex++) {
+            PointLight* currentLight = dynamic_cast<PointLight*>(scene.objects[scene.lightIndex[lightIndex]].get());
+            
+            RGB powerByDistance = currentLight->material / Direction(currentLight->center - intersection->point).mod();
+
+            
+        }
+
+
         return intersection->material;
     }
     return RGB(0, 0, 0);
