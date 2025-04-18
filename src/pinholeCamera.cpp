@@ -67,19 +67,41 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     auto intersection = scene.intersect(ray);
 
     // Return the color of the intersected material, or black if no intersection
+    RGB color = RGB(0, 0, 0);
     if (intersection) {
 
-        int lightAmount = scene.lightIndex.size();
-        for (int lightIndex = 0; lightIndex < lightAmount; lightIndex++) {
-            PointLight* currentLight = dynamic_cast<PointLight*>(scene.objects[scene.lightIndex[lightIndex]].get());
-            
-            RGB powerByDistance = currentLight->material / Direction(currentLight->center - intersection->point).mod();
+        int lightAmount = scene.lights.size();
 
-            
+        if (lightAmount == 0) {
+            return intersection->material; // No lights, return material color
         }
 
+        for (int i = 0; i < lightAmount; i++) {
 
-        return intersection->material;
+            // TODO: Comprobar si la intersección está en la sombra de la luz, no iterar si no hay luz
+            Direction obstructionDirection = (scene.lights[i]->center - intersection->point);
+            float obstructionDistance = obstructionDirection.mod();
+            Ray obstructionRay(intersection->point, obstructionDirection);
+            auto obstruction = scene.intersect(obstructionRay, obstructionDistance); // Check for obstruction
+            if (obstruction) {
+                continue; // If there's an obstruction, skip this light
+            }
+
+            PointLight* currentLight = dynamic_cast<PointLight*>(scene.lights[i].get());
+            
+            RGB powerByDistance = currentLight->light / Direction(currentLight->center - intersection->point).mod();
+            
+            RGB brdf = intersection->material * max(0.0f, intersection->normal.dot((currentLight->center - intersection->point).normalize()));
+
+            Direction lightDirection = (currentLight->center - intersection->point).normalize();
+            Direction normal = intersection->normal.normalize();
+            float cosTheta = abs(normal.dot(lightDirection));
+
+            color += powerByDistance * brdf * cosTheta; 
+            
+        }
+        return color; // Return the color of the material at the intersection point
+    } else {
+        return scene.backgroundColor; // No intersection, return background color
     }
-    return RGB(0, 0, 0);
 }

@@ -3,12 +3,11 @@
 #include <optional>
 #include <vector>
 #include <memory>
+#include <string>
 
 #include "geometry.hpp"
 #include "Image.hpp"
 #include "RGB.hpp"
-
-using namespace std;
 
 #define EPSILON 1e-6
 
@@ -47,32 +46,38 @@ public:
 
     Object3D(const RGB& material = RGB(1, 1, 1)) : material(material) {}
 
-    virtual string toString() const = 0;
-    virtual optional<Intersection> intersect(const Ray& ray) const = 0;   
-    
+    virtual std::string toString() const = 0;
+    virtual std::optional<Intersection> intersect(const Ray& ray) const = 0;   
 };
 
-class PointLight : public Object3D{
+class PointLight {
 public:
 
     Point center;
+    RGB light;
 
     // Hay que sobreescribir el material porque es el valor de emisión y no puede ser (1, 1, 1)
-    PointLight(const Point& center, const RGB& material ) : material(material), center(center) {}
+    PointLight(const Point& center, const RGB& material) : center(center), light(material) {}
 
-private:
-    
-}
+    std::string toString() const;
+
+};
 
 class Scene {
 public:
-    vector<shared_ptr<Object3D>> objects;
 
-    void addObject(const shared_ptr<Object3D>& object);
-    optional<Intersection> intersect(const Ray& ray) const;
+    Scene() = default;
+    Scene(const RGB& backgroundColor) : backgroundColor(backgroundColor) {}
+
+    std::vector<std::shared_ptr<Object3D>> objects;
+    std::vector<std::shared_ptr<PointLight>> lights;
+    RGB backgroundColor = RGB(0, 0, 0); // Color de fondo por defecto
+
+    void addObject(const std::shared_ptr<Object3D>& object);
+    void addLight(const std::shared_ptr<PointLight>& light);
+    std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
     void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
-    vector<shared_ptr<PointLight>> getLights();
-    string toString() const;
+    std::string toString() const;
 };
 
 class PinholeCamera {
@@ -108,9 +113,9 @@ public:
     Sphere(const Point& base, const float& radius, const RGB& material = RGB(1, 1, 1)) : 
         Object3D(material), center(base), radius(radius) {}
 
-    optional<Intersection> intersect(const Ray& ray) const;
+    std::optional<Intersection> intersect(const Ray& ray) const;
 
-    string toString() const;
+    std::string toString() const;
 };
 
 class Plane : public Object3D {
@@ -122,12 +127,12 @@ public:
     Plane(const Direction& normal, const int distance = 1, const RGB& material = RGB(1, 1, 1)) :
         Object3D(material), normal(normal.normalize()), distance(distance) {}
 
-    optional<Intersection> intersect(const Ray& ray) const;
+    std::optional<Intersection> intersect(const Ray& ray) const;
 
     // Returns the distance from the plane to a point
     float distanceTo(const Point& point) const;
 
-    string toString() const;
+    std::string toString() const;
 };
 
 class Triangle : public Object3D {
@@ -138,9 +143,9 @@ public:
     Triangle(const Point& a, const Point& b, const Point& c) :
         a(a), b(b), c(c), normal((b - a).cross(c - a).normalize()) {}
 
-    optional<Intersection> intersect(const Ray& ray) const;
+    std::optional<Intersection> intersect(const Ray& ray) const;
 
-    string toString() const;
+    std::string toString() const;
 };
 
 class Cone : public Object3D {
@@ -152,9 +157,9 @@ public:
     Cone(const Point& base, const Direction& axis, float radius, float height) :
         base(base), axis(axis), radius(radius), height(height) {}
 
-    optional<Intersection> intersect(const Ray& ray) const;
+    std::optional<Intersection> intersect(const Ray& ray) const;
 
-    string toString() const;
+    std::string toString() const;
 };
 
 // Cylinder, ellipsoid, disk

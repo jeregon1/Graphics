@@ -13,17 +13,17 @@ Point Ray::at(float t) const {
  *********/
 
 void Scene::addObject(const shared_ptr<Object3D>& object) {
-        objects.push_back(object);
-        if (dynamic_pointer_cast<PointLight>(object)) {
-            lightIndex.push_back(objects.size()-1);
-        }
-    }
+    objects.push_back(object);
+}
 
-optional<Intersection> Scene::intersect(const Ray& ray) const {
+void Scene::addLight(const shared_ptr<PointLight>& light) {
+    lights.push_back(light);
+}
+optional<Intersection> Scene::intersect(const Ray& ray, const float distance) const {
     optional<Intersection> closest_intersection = nullopt;
     for (const auto& object : objects) {
         auto intersection = object->intersect(ray);
-        if (intersection && (!closest_intersection || intersection->distance < closest_intersection->distance)) {
+        if (intersection && (!closest_intersection || intersection->distance < closest_intersection->distance) && intersection->distance < distance) {
             closest_intersection = intersection;
         }
     }
@@ -37,6 +37,7 @@ string Scene::toString() const {
     }
     return result;
 }
+
 
 /***************
  * Point Light *
