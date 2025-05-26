@@ -3,8 +3,11 @@
 #include <vector>
 #include <fstream>
 #include <random>
+#include <cmath>
 
 using namespace std;
+
+#define EPISILON 0.05
 
 PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height) 
 : origin(origin), width(width), height(height) {
@@ -72,30 +75,33 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
 
         int lightAmount = scene.lights.size();
 
+        // Si no hay luces en la escena, devolvemos el color del material
         if (lightAmount == 0) {
-            return intersection->material; // No lights, return material color
+            return intersection->material;
         }
 
+        // Iteramos por cada una de las luces de la escena
         for (int i = 0; i < lightAmount; i++) {
 
-            // TODO: Comprobar si la intersección está en la sombra de la luz, no iterar si no hay luz
-            Direction obstructionDirection = (scene.lights[i]->center - intersection->point);
-            float obstructionDistance = obstructionDirection.mod();
-            Ray obstructionRay(intersection->point, obstructionDirection);
-            auto obstruction = scene.intersect(obstructionRay, obstructionDistance); // Check for obstruction
+            PointLight* currentLight = dynamic_cast<PointLight*>(scene.lights[i].get());
+
+            // TODO: Comprobar si la dirección es el sentido correcto
+            Direction obstructionDirection = (currentLight->center - intersection->point); // Dirección desde el punto de intersección hasta la luz
+            float obstructionDistance = obstructionDirection.mod(); // Evitamos colisiones con otros objetos más lejanos que la luz
+            Ray obstructionRay(intersection->point * (1+EPSILON), obstructionDirection); // Creamos el raycast para comprobar la colisión
+            auto obstruction = scene.intersect(obstructionRay, obstructionDistance);
+
             if (obstruction) {
-                continue; // If there's an obstruction, skip this light
+                continue;
             }
 
-            PointLight* currentLight = dynamic_cast<PointLight*>(scene.lights[i].get());
-            
-            RGB powerByDistance = currentLight->light / Direction(currentLight->center - intersection->point).mod();
-            
-            RGB brdf = intersection->material * max(0.0f, intersection->normal.dot((currentLight->center - intersection->point).normalize()));
+            RGB powerByDistance = currentLight->light / pow(Direction(currentLight->center - intersection->point).mod(), 2);
+
+            RGB brdf = intersection->material * (1.0f / M_PI); // Lambertian reflectance
 
             Direction lightDirection = (currentLight->center - intersection->point).normalize();
             Direction normal = intersection->normal.normalize();
-            float cosTheta = abs(normal.dot(lightDirection));
+            float cosTheta = max(float(0.0), normal.dot(lightDirection));
 
             color += powerByDistance * brdf * cosTheta; 
             

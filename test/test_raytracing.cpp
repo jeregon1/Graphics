@@ -21,13 +21,13 @@ int main() {
 
     // Spheres-
     // Estas intersecciones funcionan pero se detecta rarote
-    scene.addObject(make_shared<Sphere>(Point(-0.5, 0.7, 0.25), 0.3)); // Left sphere
-    scene.addObject(make_shared<Sphere>(Point(0.5, 0.7, -0.25), 0.3)); // Right sphere
+    scene.addObject(make_shared<Sphere>(Point(-0.5, 0.7, 0.25), 0.3, RGB(1,0,0))); // Left sphere
+    scene.addObject(make_shared<Sphere>(Point(0.5, 0.7, -0.25), 0.3, RGB(0,1,0))); // Right sphere
     //scene.addObject(make_shared<Sphere>(Point(0, 0, -2), 0.5)); // Top sphere
 
 
     // Lights
-    shared_ptr<PointLight> shared_pointLight = make_shared<PointLight>(Point(0, 0.5, 0), RGB(1, 1, 1)); // Light source
+    shared_ptr<PointLight> shared_pointLight = make_shared<PointLight>(Point(0, 0.15, 0), RGB(1, 1, 1)); // Light source
     scene.addLight(shared_pointLight); // Light source
 
     // Camera

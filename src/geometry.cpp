@@ -61,6 +61,10 @@ float Point::dot(const Point& other) const {
 
 Direction Point::operator-(const Point& p2) const {
     return Direction(x - p2.x, y - p2.y, z - p2.z);
+} 
+
+Point Point::operator+(const Direction& other) const {
+    return Point(x + other.x, y + other.y, z + other.z);
 }
 
 string Point::toString() const {
@@ -97,6 +101,10 @@ Direction Direction::operator/(float scalar) const {
 
 Point Direction::operator+(const Point& point) const {
     return Point(x + point.x, y + point.y, z + point.z, point.base);
+}
+
+bool Direction::operator==(const Direction& other) const {
+    return (x == other.x && y == other.y && z == other.z);
 }
 
 float Direction::mod() const {

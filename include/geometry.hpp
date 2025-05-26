@@ -35,6 +35,7 @@ public:
 
     Direction operator-(const Point& p2) const;
     Point operator*(float scalar) const;
+    Point operator+(const Direction& other) const;
     string toString() const override;
 };
 
@@ -46,6 +47,7 @@ public:
     Direction operator-(const Direction& other) const;
     Direction operator*(float scalar) const;
     Direction operator/(float scalar) const;
+    bool operator==(const Direction& other) const;
     Point operator+(const Point& point) const;
     float mod() const;
     Direction normalize() const; // Returns a unit vector

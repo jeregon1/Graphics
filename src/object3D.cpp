@@ -19,9 +19,23 @@ void Scene::addObject(const shared_ptr<Object3D>& object) {
 void Scene::addLight(const shared_ptr<PointLight>& light) {
     lights.push_back(light);
 }
-optional<Intersection> Scene::intersect(const Ray& ray, const float distance) const {
+optional<Intersection> Scene::intersect(const Ray& ray, const float distance, vector<shared_ptr<Object3D>> ignoreObjects) const {
+    bool ignoreThisObject = false;
     optional<Intersection> closest_intersection = nullopt;
     for (const auto& object : objects) {
+
+        // Iterar sobre todos los objetos a ignorer (no se itera si no hay objetos)
+        for (const auto& ignoreObject : ignoreObjects) {
+            if (ignoreObject.get() == object.get()) { // Si se tiene que ignorar este objeto no hace falta comprobar el resto
+                ignoreThisObject = true;
+                break;
+            }
+        }
+        if (ignoreThisObject) {
+            ignoreThisObject = false;
+            continue;
+        }
+
         auto intersection = object->intersect(ray);
         if (intersection && (!closest_intersection || intersection->distance < closest_intersection->distance) && intersection->distance < distance) {
             closest_intersection = intersection;

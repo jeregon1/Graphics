@@ -75,7 +75,7 @@ public:
 
     void addObject(const std::shared_ptr<Object3D>& object);
     void addLight(const std::shared_ptr<PointLight>& light);
-    std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
+    std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f, std::vector<std::shared_ptr<Object3D>> ignoreObjects = {}) const;
     void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
     std::string toString() const;
 };
