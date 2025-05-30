@@ -19,29 +19,42 @@ void Scene::addObject(const shared_ptr<Object3D>& object) {
 void Scene::addLight(const shared_ptr<PointLight>& light) {
     lights.push_back(light);
 }
-optional<Intersection> Scene::intersect(const Ray& ray, const float distance, vector<shared_ptr<Object3D>> ignoreObjects) const {
+
+optional<Intersection> Scene::intersect(const Ray& ray, const float distance) const {
     bool ignoreThisObject = false;
     optional<Intersection> closest_intersection = nullopt;
     for (const auto& object : objects) {
-
-        // Iterar sobre todos los objetos a ignorer (no se itera si no hay objetos)
-        for (const auto& ignoreObject : ignoreObjects) {
-            if (ignoreObject.get() == object.get()) { // Si se tiene que ignorar este objeto no hace falta comprobar el resto
-                ignoreThisObject = true;
-                break;
-            }
-        }
-        if (ignoreThisObject) {
-            ignoreThisObject = false;
-            continue;
-        }
-
         auto intersection = object->intersect(ray);
         if (intersection && (!closest_intersection || intersection->distance < closest_intersection->distance) && intersection->distance < distance) {
             closest_intersection = intersection;
         }
     }
     return closest_intersection;
+}
+
+RGB Scene::calculateDirectLight(const Point& p) const {
+
+    RGB directLight(0, 0, 0);
+
+    for (const shared_ptr<PointLight>& light : lights) {
+        PointLight* currentLight = dynamic_cast<PointLight*>(light.get()); // Se obtiene el puntero
+        Direction lightDirection = currentLight->center - p;
+        float distanceToLight = lightDirection.mod(); // Primero calculamos la distancia a la luz
+        if (distanceToLight < EPSILON) {
+            continue; // Si la distancia es muy pequeña, no consideramos la luz
+        }
+
+        // Create a ray from the point to the light
+        Ray lightRay(p + lightDirection * EPSILON, lightDirection.normalize());
+        optional<Intersection> obstruction = intersect(lightRay, distanceToLight);
+
+        if (!obstruction) { // Si no hay obstaculos, consideramos la luz
+            RGB powerByDistance = currentLight->light / (distanceToLight * distanceToLight);
+            directLight += powerByDistance;
+        }
+        
+    }
+
 }
 
 string Scene::toString() const {
@@ -51,13 +64,6 @@ string Scene::toString() const {
     }
     return result;
 }
-
-
-/***************
- * Point Light *
- ***************/
-
-
  
 /**********
  * Sphere *

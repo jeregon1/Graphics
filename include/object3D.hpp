@@ -21,10 +21,21 @@ struct Intersection {
     float distance;
     Point point;
     Direction normal;
-    RGB material;
+    Material material;
 
-    Intersection(float distance, const Point& point, const Direction& normal, const RGB& material = RGB(1, 1, 1)) :
+    Intersection(float distance, const Point& point, const Direction& normal, const Material& material = Material()) :
         distance(distance), point(point), normal(normal), material(material) {}
+};
+
+// TODO: Igual hay que añadir algo más en Material?
+struct Material {
+    RGB diffuse; // Color difuso
+    RGB specular; // Color especular
+    RGB glossy; // Color brillante
+    float shininess; // Exponente de brillo ??
+
+    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), const RGB& glossy = RGB(0, 0, 0), float shininess = 32.0f) :
+        diffuse(diffuse), specular(specular), glossy(glossy), shininess(shininess) {}
 };
 
 class Ray {
@@ -42,9 +53,9 @@ public:
 class Object3D {
 public:
 
-    RGB material;
+    Material material;
 
-    Object3D(const RGB& material = RGB(1, 1, 1)) : material(material) {}
+    Object3D(const Material& material = Material()) : material(material) {}
 
     virtual std::string toString() const = 0;
     virtual std::optional<Intersection> intersect(const Ray& ray) const = 0;   
@@ -75,7 +86,10 @@ public:
 
     void addObject(const std::shared_ptr<Object3D>& object);
     void addLight(const std::shared_ptr<PointLight>& light);
-    std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f, std::vector<std::shared_ptr<Object3D>> ignoreObjects = {}) const;
+    std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
+    
+    RGB calculateDirectLight(const Point& p) const;
+    
     void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
     std::string toString() const;
 };
@@ -90,7 +104,8 @@ public:
     PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
         : origin(origin), left(left.normalize()), up(up.normalize()), forward(forward), width(width), height(height) {}
 
-    Image render(const Scene& scene, unsigned samplesPerPixel) const;
+    Image renderRayTracing(const Scene& scene, unsigned samplesPerPixel) const;
+    Image renderPathTracing(const Scene& scene, unsigned samplesPerPixel) const;
 
 private:
 
@@ -100,8 +115,9 @@ private:
 
     Ray generateRay(float x, float y) const;
     RGB traceRay(const Ray& ray, const Scene& scene) const;
-    RGB calculatePixelColor(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
-
+    RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
+    RGB calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
+    RGB calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
 };
 
 class Sphere : public Object3D {
@@ -110,7 +126,7 @@ public:
     float radius;
     float inclinacion, azimut;
 
-    Sphere(const Point& base, const float& radius, const RGB& material = RGB(1, 1, 1)) : 
+    Sphere(const Point& base, const float& radius, const Material& material) : 
         Object3D(material), center(base), radius(radius) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
@@ -124,7 +140,7 @@ public:
     Direction normal;
     int distance;
 
-    Plane(const Direction& normal, const int distance = 1, const RGB& material = RGB(1, 1, 1)) :
+    Plane(const Direction& normal, const int distance = 1, const Material& material) :
         Object3D(material), normal(normal.normalize()), distance(distance) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
@@ -135,6 +151,7 @@ public:
     std::string toString() const;
 };
 
+// No implementados
 class Triangle : public Object3D {
 public:
     Point a, b, c;

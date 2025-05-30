@@ -7,7 +7,9 @@
 
 using namespace std;
 
-#define EPISILON 0.05
+/********************
+ * Métodos Públicos *
+ ********************/
 
 PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height) 
 : origin(origin), width(width), height(height) {
@@ -19,11 +21,10 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
 
     left = Direction(-1, 0, 0) * halfWidth;
     up = Direction(0, 1, 0) * halfHeight;
-    forward = Direction(0, 0, 3); 
+    forward = Direction(0, 0, 1); 
 }
 
-
-Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel) const {
+Image PinholeCamera::renderRayTracing(const Scene& scene, unsigned samplesPerPixel) const {
     vector<RGB> pixels(height * width);
 
     for (int y = 0; y < height; y++) {
@@ -31,7 +32,7 @@ Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel) const 
         for (int x = 0; x < width; x++) {
             float normalizedX = static_cast<float>(x) - (width / 2);
             // Calculate the color of the pixel at (x, y)
-            RGB pixelColor = calculatePixelColor(scene, normalizedX, normalizedY, samplesPerPixel);
+            RGB pixelColor = calculatePixelColorRayTracing(scene, normalizedX, normalizedY, samplesPerPixel);
             pixels[y * height + x] = pixelColor;
         }
     }
@@ -39,7 +40,53 @@ Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel) const 
     return Image(width, height, pixels);
 }
 
-RGB PinholeCamera::calculatePixelColor(const Scene& scene, float x, float y, unsigned samplesPerPixel) const {
+Image PinholeCamera::renderPathTracing(const Scene& scene, unsigned samplesPerPixel) const {
+    vector<RGB> pixels(height * width);
+
+    for (int y = 0; y < height; y++) {
+        float normalizedY = static_cast<float>(y) - (height / 2);
+        for (int x = 0; x < width; x++) {
+            float normalizedX = static_cast<float>(x) - (width / 2);
+            // Calculate the color of the pixel at (x, y)
+            RGB pixelColor = calculatePixelColorPathTracing(scene, normalizedX, normalizedY, samplesPerPixel);
+            pixels[y * height + x] = pixelColor;
+        }
+    }
+
+    return Image(width, height, pixels);
+}
+
+/********************
+ * Métodos Privados *
+ ********************/
+
+Ray PinholeCamera::generateRay(float x, float y) const {
+    // Calculate the direction of the ray
+    Direction direction = (left * x + up * y + forward);
+    return Ray(origin, direction.normalize());
+}
+
+RGB PinholeCamera::calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const {
+
+    RGB accumulatedColor(0, 0, 0);
+
+    for (unsigned i = 0; i < samplesPerPixel; i++) { // Example for image (100x100), x = 0, y = 0, samplesPerPixel = 1
+        // Generate a random offset for anti-aliasing
+        float x_offset = x + rand0_1(); // -50.5
+        float y_offset = y + rand0_1(); // -50.5
+
+        // Generate a ray through the pixel
+        Ray ray = generateRay(x_offset, y_offset);
+
+        // Trace the ray and accumulate the color
+        accumulatedColor += tracePath(ray, scene);
+    }
+
+    // Average the accumulated color
+    return accumulatedColor / samplesPerPixel;
+}
+
+RGB PinholeCamera::calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const {
 
     RGB accumulatedColor(0, 0, 0);
 
@@ -59,12 +106,6 @@ RGB PinholeCamera::calculatePixelColor(const Scene& scene, float x, float y, uns
     return accumulatedColor / samplesPerPixel;
 }
 
-Ray PinholeCamera::generateRay(float x, float y) const {
-    // Calculate the direction of the ray
-    Direction direction = (left * x + up * y + forward);
-    return Ray(origin, direction.normalize());
-}
-
 RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     // Find the closest intersection of the ray with the scene
     auto intersection = scene.intersect(ray);
@@ -77,7 +118,7 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
 
         // Si no hay luces en la escena, devolvemos el color del material
         if (lightAmount == 0) {
-            return intersection->material;
+            return intersection->material.diffuse;
         }
 
         // Iteramos por cada una de las luces de la escena
@@ -97,7 +138,7 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
 
             RGB powerByDistance = currentLight->light / pow(Direction(currentLight->center - intersection->point).mod(), 2);
 
-            RGB brdf = intersection->material * (1.0f / M_PI); // Lambertian reflectance
+            RGB brdf = intersection->material.diffuse * (1.0f / M_PI); // Lambertian reflectance
 
             Direction lightDirection = (currentLight->center - intersection->point).normalize();
             Direction normal = intersection->normal.normalize();
@@ -110,4 +151,37 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     } else {
         return scene.backgroundColor; // No intersection, return background color
     }
+}
+
+RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth) const {
+    
+    if (depth <= 0) {
+        return RGB(0, 0, 0); // Stop recursion
+    }
+
+    optional<Intersection> intersection = scene.intersect(ray);
+    if (!intersection) {
+        return scene.backgroundColor; // No intersection, return background color
+    }
+
+    Material color = intersection->material; // Start with the material color
+
+    // If the material is a light source, return its color
+    if (intersection->material.max() > 1.0f) {
+        return intersection->material;
+    }
+
+    // Calculate direct lighting
+    RGB directLight = scene.calculateDirectLight(intersection->point);
+    color += directLight;
+
+    // Generate a new ray for reflection or refraction
+    Direction reflectedDirection = ray.direction - intersection->normal * (2 * ray.direction.dot(intersection->normal));
+    Ray reflectedRay(intersection->point + reflectedDirection * EPSILON, reflectedDirection);
+
+    // Recursively trace the reflected ray
+    RGB reflectedColor = tracePath(reflectedRay, scene, depth - 1);
+    
+    // Combine the colors
+    return color + reflectedColor * intersection->material; // Assuming simple Lambertian reflection
 }
