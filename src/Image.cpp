@@ -8,6 +8,10 @@
 
 #include "../include/Image.hpp"
 #include <iomanip>
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <cstdint>
 
 using namespace std;
 

@@ -17,25 +17,25 @@ inline float rand0_1() {
   return (float) rand() / (RAND_MAX);
 }
 
+// TODO: Igual hay que añadir algo más en Material?
+struct Material {
+    RGB diffuse; // Color difuso
+    RGB specular; // Color especular
+    RGB glossy; // Color brillante
+    bool isEmissive = false; // Si es una fuente de luz
+
+    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), const RGB& glossy = RGB(0, 0, 0), bool isEmissive = false) :
+        diffuse(diffuse), specular(specular), glossy(glossy), isEmissive(isEmissive) {}
+};
+
 struct Intersection {
     float distance;
     Point point;
     Direction normal;
     Material material;
 
-    Intersection(float distance, const Point& point, const Direction& normal, const Material& material = Material()) :
+    Intersection(const float distance, const Point& point, const Direction& normal, const Material& material) :
         distance(distance), point(point), normal(normal), material(material) {}
-};
-
-// TODO: Igual hay que añadir algo más en Material?
-struct Material {
-    RGB diffuse; // Color difuso
-    RGB specular; // Color especular
-    RGB glossy; // Color brillante
-    float shininess; // Exponente de brillo ??
-
-    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), const RGB& glossy = RGB(0, 0, 0), float shininess = 32.0f) :
-        diffuse(diffuse), specular(specular), glossy(glossy), shininess(shininess) {}
 };
 
 class Ray {
@@ -55,7 +55,7 @@ public:
 
     Material material;
 
-    Object3D(const Material& material = Material()) : material(material) {}
+    Object3D(const Material& material) : material(material) {}
 
     virtual std::string toString() const = 0;
     virtual std::optional<Intersection> intersect(const Ray& ray) const = 0;   
@@ -140,7 +140,7 @@ public:
     Direction normal;
     int distance;
 
-    Plane(const Direction& normal, const int distance = 1, const Material& material) :
+    Plane(const Direction& normal, const Material& material, const int distance = 1) :
         Object3D(material), normal(normal.normalize()), distance(distance) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
@@ -157,8 +157,8 @@ public:
     Point a, b, c;
     Direction normal;
 
-    Triangle(const Point& a, const Point& b, const Point& c) :
-        a(a), b(b), c(c), normal((b - a).cross(c - a).normalize()) {}
+    Triangle(const Point& a, const Point& b, const Point& c, const Material& material) :
+        Object3D(material), a(a), b(b), c(c), normal((b - a).cross(c - a).normalize()) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
 
@@ -171,8 +171,8 @@ public:
     Direction axis;
     float radius, height;
 
-    Cone(const Point& base, const Direction& axis, float radius, float height) :
-        base(base), axis(axis), radius(radius), height(height) {}
+    Cone(const Point& base, const Direction& axis, float radius, float height, const Material& material) :
+        Object3D(material), base(base), axis(axis), radius(radius), height(height) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
 

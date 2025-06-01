@@ -35,9 +35,10 @@ optional<Intersection> Scene::intersect(const Ray& ray, const float distance) co
 RGB Scene::calculateDirectLight(const Point& p) const {
 
     RGB directLight(0, 0, 0);
+    int lightAmount = lights.size();
 
-    for (const shared_ptr<PointLight>& light : lights) {
-        PointLight* currentLight = dynamic_cast<PointLight*>(light.get()); // Se obtiene el puntero
+    for (int i = 0; i < lightAmount; i++) {
+        PointLight* currentLight = dynamic_cast<PointLight*>(lights[i].get()); // Se obtiene el puntero
         Direction lightDirection = currentLight->center - p;
         float distanceToLight = lightDirection.mod(); // Primero calculamos la distancia a la luz
         if (distanceToLight < EPSILON) {
@@ -54,6 +55,8 @@ RGB Scene::calculateDirectLight(const Point& p) const {
         }
         
     }
+
+    return directLight;
 
 }
 
@@ -141,6 +144,7 @@ optional<Intersection> Sphere::intersect(const Ray& r) const {
     */
 }
 
+
 /*********
  * Plane *
  *********/
@@ -178,6 +182,7 @@ string Plane::toString() const {
  * Triangle *
  ************/
 
+ /*
 // TODO: check
 optional<Intersection> Triangle::intersect(const Ray& r) const {
     // Source: https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
@@ -213,6 +218,7 @@ optional<Intersection> Triangle::intersect(const Ray& r) const {
     else
         return nullopt;
 }
+*/
 
 string Triangle::toString() const {
     ostringstream oss;
@@ -226,6 +232,7 @@ string Triangle::toString() const {
  * Cone *
  ********/
 
+ /*
 // Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-cone-intersection
 optional<Intersection> Cone::intersect(const Ray& ray) const {
     Direction co = ray.origin - base;
@@ -257,6 +264,7 @@ optional<Intersection> Cone::intersect(const Ray& ray) const {
         return Intersection(t, intersectionPoint, normal);
     }
 }
+*/
 
 string Cone::toString() const {
     stringstream ss;

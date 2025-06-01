@@ -21,9 +21,10 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
 
     left = Direction(-1, 0, 0) * halfWidth;
     up = Direction(0, 1, 0) * halfHeight;
-    forward = Direction(0, 0, 1); 
+    forward = Direction(0, 0, 3); 
 }
 
+// TODO: Por algún motivo, no funcionan las intersecciones con los planos
 Image PinholeCamera::renderRayTracing(const Scene& scene, unsigned samplesPerPixel) const {
     vector<RGB> pixels(height * width);
 
@@ -153,35 +154,79 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     }
 }
 
+/*
+ * Generates a random direction on the hemisphere defined by the normal vector.
+ * This is used for path tracing to sample directions uniformly.
+ */
+// https://the-last-stand.github.io/ray-tracing-practice/the_rest_of_your_life/generating_random_directions/
+Direction randomCosineDirection(const Direction& normal) {
+    float r1 = 2 * M_PI * rand0_1();
+    float r2 = rand0_1();
+    float r2s = sqrt(r2);
+
+    // Base ortonormal
+    Direction w = normal;
+    Direction u = ((fabs(w.x) > 0.1 ? Direction(0,1,0) : Direction(1,0,0)).cross(w)).normalize();
+    Direction v = w.cross(u);
+
+    return (u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1 - r2)).normalize();
+}
+
 RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth) const {
     
-    if (depth <= 0) {
-        return RGB(0, 0, 0); // Stop recursion
+    if (depth > 20) { // Caso base: Máximo número de rebotes
+        return RGB(0, 0, 0);
     }
 
+    // Se intersecta el rayo con la escena
+    // Si no hay intersección, devolvemos el color de fondo
     optional<Intersection> intersection = scene.intersect(ray);
     if (!intersection) {
-        return scene.backgroundColor; // No intersection, return background color
+        return scene.backgroundColor;
     }
 
-    Material color = intersection->material; // Start with the material color
-
-    // If the material is a light source, return its color
-    if (intersection->material.max() > 1.0f) {
-        return intersection->material;
+    // Si el material es emisivo, devolvemos su color (como una fuente de luz)
+    if (intersection->material.isEmissive) {
+        return intersection->material.diffuse;
     }
 
-    // Calculate direct lighting
-    RGB directLight = scene.calculateDirectLight(intersection->point);
-    color += directLight;
+    // Luz directa: estimación explícita de la luz (next event estimation)
+    RGB directLight(0, 0, 0);
+    for (const auto& lightPtr : scene.lights) {
+        const PointLight* light = dynamic_cast<const PointLight*>(lightPtr.get());
+        if (!light) continue;
+        Direction toLight = (light->center - intersection->point);
+        float distanceToLight = toLight.mod();
+        Direction lightDir = toLight / distanceToLight;
+        Ray shadowRay(intersection->point + lightDir * EPSILON, lightDir);
+        auto shadowHit = scene.intersect(shadowRay, distanceToLight - EPSILON);
+        if (!shadowHit) {
+            float cosTheta = max(0.0f, intersection->normal.dot(lightDir));
+            RGB brdf = intersection->material.diffuse * (1.0f / M_PI);
+            RGB lightIntensity = light->light / (distanceToLight * distanceToLight);
+            directLight += brdf * lightIntensity * cosTheta;
+        }
+    }
 
-    // Generate a new ray for reflection or refraction
-    Direction reflectedDirection = ray.direction - intersection->normal * (2 * ray.direction.dot(intersection->normal));
-    Ray reflectedRay(intersection->point + reflectedDirection * EPSILON, reflectedDirection);
+    // Rebote indirecto: dirección aleatoria en el hemisferio de la normal
+    Direction randomDir = randomCosineDirection(intersection->normal);
+    Ray randomRay(intersection->point + randomDir * EPSILON, randomDir);
 
-    // Recursively trace the reflected ray
-    RGB reflectedColor = tracePath(reflectedRay, scene, depth - 1);
-    
-    // Combine the colors
-    return color + reflectedColor * intersection->material; // Assuming simple Lambertian reflection
+    // Ruleta rusa para terminar caminos largos
+    float survivalProbability = min(0.9f, intersection->material.diffuse.max());
+    if (depth >= 3 && rand0_1() > survivalProbability) {
+        return directLight;
+    }
+
+    // Recursión para el rebote indirecto
+    RGB reflectedColor = tracePath(randomRay, scene, depth + 1);
+    if (depth >= 3) {
+        reflectedColor = reflectedColor / survivalProbability;
+    }
+
+    float cosTheta = max(0.0f, intersection->normal.dot(randomDir));
+    RGB brdf = intersection->material.diffuse * (1.0f / M_PI);
+
+    // Suma de luz directa e indirecta
+    return directLight + reflectedColor;
 }
