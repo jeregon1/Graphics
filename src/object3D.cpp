@@ -21,7 +21,6 @@ void Scene::addLight(const shared_ptr<PointLight>& light) {
 }
 
 optional<Intersection> Scene::intersect(const Ray& ray, const float distance) const {
-    bool ignoreThisObject = false;
     optional<Intersection> closest_intersection = nullopt;
     for (const auto& object : objects) {
         auto intersection = object->intersect(ray);
@@ -56,7 +55,7 @@ RGB Scene::calculateDirectLight(const Point& p) const {
         
     }
 
-    return directLight;
+    return directLight; // Lambertian reflectance
 
 }
 

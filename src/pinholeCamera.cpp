@@ -166,6 +166,7 @@ Direction randomCosineDirection(const Direction& normal) {
 
     // Base ortonormal
     Direction w = normal;
+    // Vectores perpendiculares a w
     Direction u = ((fabs(w.x) > 0.1 ? Direction(0,1,0) : Direction(1,0,0)).cross(w)).normalize();
     Direction v = w.cross(u);
 
@@ -190,22 +191,30 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
         return intersection->material.diffuse;
     }
 
-    // Luz directa: estimación explícita de la luz (next event estimation)
+    // Cálculo de la luz directa
     RGB directLight(0, 0, 0);
-    for (const auto& lightPtr : scene.lights) {
-        const PointLight* light = dynamic_cast<const PointLight*>(lightPtr.get());
-        if (!light) continue;
-        Direction toLight = (light->center - intersection->point);
-        float distanceToLight = toLight.mod();
-        Direction lightDir = toLight / distanceToLight;
-        Ray shadowRay(intersection->point + lightDir * EPSILON, lightDir);
-        auto shadowHit = scene.intersect(shadowRay, distanceToLight - EPSILON);
-        if (!shadowHit) {
-            float cosTheta = max(0.0f, intersection->normal.dot(lightDir));
-            RGB brdf = intersection->material.diffuse * (1.0f / M_PI);
-            RGB lightIntensity = light->light / (distanceToLight * distanceToLight);
-            directLight += brdf * lightIntensity * cosTheta;
-        }
+    RGB indirectLight(1, 1, 1);
+    float diffuse = intersection->material.diffuse.max();
+    float specular = intersection->material.specular.max();
+
+    if (diffuse + specular > 0.9f) {
+        diffuse = 0.9f * diffuse / (diffuse + specular);
+        specular = 0.9f * specular / (diffuse + specular);
+    }
+
+    float randomValue = rand0_1();
+    if (randomValue < diffuse) {
+        // Si el valor aleatorio es menor que la probabilidad de difuso, devolvemos la luz directa
+        directLight = scene.calculateDirectLight(intersection->point);
+        indirectLight = indirectLight * (intersection->material.diffuse / diffuse); // Difuso
+    } else if (randomValue < diffuse + specular) {
+        // Si el valor aleatorio está entre la probabilidad de difuso y especular, devolvemos el color especular
+        
+        // TODO: No se para que se usa esta variable
+        Direction wr = (ray.direction - intersection->normal * 2 * ray.direction.dot(intersection->normal)).normalize();
+        indirectLight = indirectLight * (intersection->material.specular / specular); // Especular
+    } else {
+        return scene.backgroundColor; // Matamos el rayo
     }
 
     // Rebote indirecto: dirección aleatoria en el hemisferio de la normal
@@ -228,5 +237,5 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
     RGB brdf = intersection->material.diffuse * (1.0f / M_PI);
 
     // Suma de luz directa e indirecta
-    return directLight + reflectedColor;
+    return directLight * brdf * cosTheta + reflectedColor;
 }

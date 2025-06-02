@@ -21,11 +21,12 @@ inline float rand0_1() {
 struct Material {
     RGB diffuse; // Color difuso
     RGB specular; // Color especular
-    RGB glossy; // Color brillante
+    float roughness = 0.0f; // Brillo especular
+    float ior = 1.0f; // Índice de refracción
     bool isEmissive = false; // Si es una fuente de luz
 
-    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), const RGB& glossy = RGB(0, 0, 0), bool isEmissive = false) :
-        diffuse(diffuse), specular(specular), glossy(glossy), isEmissive(isEmissive) {}
+    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), const float roughness = 1.0f, const float ior = 0.0f, bool isEmissive = false) :
+        diffuse(diffuse), specular(specular), roughness(roughness), ior(ior), isEmissive(isEmissive) {}
 };
 
 struct Intersection {
