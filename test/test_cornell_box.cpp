@@ -38,7 +38,7 @@ int main() {
     PinholeCamera camera(Point(0, 0, -3.5), 1, 256, 256);
 
     // Render
-    Image image = camera.renderPathTracing(scene, 16);
+    Image image = camera.renderPathTracing(scene, 64);
     image.writePPM("output.ppm");
     //image.writeBMP("output.bmp");
 

@@ -1,0 +1,285 @@
+MapaFotones Escena::generarMapaFotones(int numPaseos, bool guardar, double sigma) {
+    list<Foton> fotones;
+    double totalEmision = 0.0;
+    for (LuzPuntual* luz : luces) totalEmision += max(luz->c); // Obtiene el total de emisión de todas las luces
+    for (LuzPuntual* luz : luces) {
+        int numFotones = (int)(numPaseos*max(luz->c)/totalEmision); // Distribuye los paseos de fotones según la emisión de cada luz
+        for (int j = 0; j < numFotones; j++) {
+            Direccion d = muestraAnguloSolido(); // Muestra una dirección aleatoria en el ángulo sólido
+            Rayo r = Rayo(luz->p, d);
+            primerReboteFoton(r, 4*M_PI*luz->c/numFotones, fotones, fotones, guardar, sigma);
+        }
+    }
+    MapaFotones mapa = constructorMapaFotones(fotones);
+    return mapa;  
+}
+
+// Entiendo que lo que hace es generar un muestreo aleatorio uniforme a lo largo de la esfera
+Direccion muestraAnguloSolido() {
+    double xi1 = (double)rand() / RAND_MAX;
+    double th = acos(2*xi1-1);
+    double xi2 = (double)rand() / RAND_MAX;
+    double phi = 2*M_PI*xi2;
+    Direccion d = Direccion(sin(th)*cos(phi), sin(th)*sin(phi), cos(th));
+    return d;
+}
+
+// Genera una direccion aleatoria en la hemiesfera con coseno uniforme
+Direccion DireccionMuestraAleatoria::cosenoUniforme() {
+    double xi1 = (double)rand() / RAND_MAX;
+    double th = acos(sqrt(1-xi1));
+    double xi2 = (double)rand() / RAND_MAX;
+    double phi = 2*M_PI*xi2;
+    Direccion d = Direccion(sin(th)*cos(phi), sin(th)*sin(phi), cos(th));
+    return cambioBase()*d;
+}
+
+// Estas dos imágenes generan una lista de fotones en la escena
+void Escena::primerReboteFoton(Rayo r, RGB luz, list<Foton>& fotones, 
+            list<Foton>& causticos, bool guardar, double sigma) {
+    
+    // Inicializacion de variables
+    Interseccion i = interseccion(r);
+    RGB radiancia = luz;
+    Direccion wo = r.d, wi;
+    EVENTO ev;
+    bool caustico = false;
+
+    if (i.numIntersecciones > 0) { // Si interseca la escena
+        // Si interseca con una luz de área, guardamos el fotón
+        if (i.geometria->esLuzArea()) {
+            // Si se pone guardar, se guarda el fotón
+            if (guardar) {
+                Foton f = Foton(i.punto, wo, radiancia);
+                fotones.push_back(f);
+            }
+            return;
+        }
+        // Esto se puede hacer sin la cochinada del enum o cosas así, solo con funciones aleatorias
+        ev = i.geometria->evento_aleatorio();
+        // Distancia entre el origen del rayo y el punto de intersección
+        double norma = (r.p - i.punto)*(r.p - i.punto);
+        // BRDF lambertiano
+        RGB brdf = luz/norma;
+
+        if (ev == EVENTO_ABSORCION) return; // Si es absorción, no se hace nada
+        
+        else if (ev == EVENTO_DIFUSO) {
+            Direccion normal = i.normal;
+            if (wo*normal > 0.0) normal = -normal; // Dirección del rayo * normal de la intersección
+            DireccionMuestraAleatoria d = DireccionMuestraAleatoria(normal, i.punto);
+            wi = d.cosenoUniforme(); // Obtención de una dirección aleatoria de la hemiesfera
+            brdf = brdf *abs(wi*normal)
+                    * i.geometria->fr_difuso(i.punto, wi, wo, normal);
+            
+            // Esto se tiene que poder hacer con una función, no con un if
+            if (guardar) { // Guardamos la luz directa
+                Foton f = Foton(i.punto, wo, brdf);
+                fotones.push_back(f);
+            }
+        } 
+        
+        else if (ev == EVENTO_ESPECULAR) {
+            caustico = true;
+            Direccion normal = i.normal;
+            if (wo*normal > 0.0) normal = -normal;
+            wi = i.geometria->reflejar(wo, normal); // Funcion brdf 
+            brdf = brdf *abs(wi*normal)
+                    * i.geometria->fr_especular(i.punto, wi, wo, normal);
+        } 
+        
+        else if (ev == EVENTO_REFRACCION) {
+            caustico = true;
+            Direccion normal = i.normal;
+            wi = i.geometria->refractar(wo, normal); // Funcion brdf
+            brdf = brdf *abs(wi*normal)
+                    * i.geometria->fr_refraccion(i.punto, wi, wo, normal);
+        }
+        // Sigue el camino del foton
+        // Número e 2.182... es la base del logaritmo natural, se usa para simular la atenuación de la luz
+        // Sigma se refiere a la atenuación de la luz, que se puede usar para simular la dispersión de la luz en el medio
+        brdf = brdf * pow(M_E, -sigma*norma);
+
+
+        calcularCaminoFoton(Rayo(i.punto, wi), brdf, fotones, causticos, caustico, sigma);
+    }
+}
+
+// Esto se puede inlanear dentro de la función anterior, es una cochinada
+void Escena::calcularCaminoFoton(Rayo r, RGB luz, list<Foton>& fotones,
+            list<Foton>& causticos, bool caustico, double sigma) {
+    
+    Interseccion i = interseccion(r);
+    RGB radiancia = luz;
+    Direccion wo = r.d, wi;
+    EVENTO ev;
+    bool esCaustico = caustico;
+    double norma = (r.p - i.punto)*(r.p - i.punto);
+
+    while (i.numIntersecciones > 0) { // Si interseca la escena
+        radiancia = radiancia * pow(M_E, -sigma*norma);
+
+        if (i.geometria->esLuzArea()) {
+            Foton f = Foton(i.punto, wo, radiancia);
+            fotones.push_back(f);
+            return;
+        }
+
+        ev = i.geometria->evento_aleatorio();
+        if (ev == EVENTO_ABSORCION) return;
+
+        else if (ev == EVENTO_DIFUSO) {
+            Direccion normal = i.normal;
+            if (wo*normal > 0.0) normal = -normal;
+            DireccionMuestraAleatoria d = DireccionMuestraAleatoria(normal, i.punto);
+            wi = d.cosenoUniforme();
+
+            
+
+            Foton f = Foton(i.punto, wo, radiancia);
+            // Se guarda en respectiva lista
+            if (esCaustico) causticos.push_back(f);
+            else fotones.push_back(f);
+            esCaustico = false;
+            // BRDF se calcula después de guardar el fotón
+            radiancia = radiancia*abs(wi*normal)
+                    * i.geometria->fr_difuso(i.punto, wi, wo, normal);
+        } 
+        
+        else if (ev == EVENTO_ESPECULAR) {
+            esCaustico = true;
+            Direccion normal = i.normal;
+            if (wo*normal > 0.0) normal = -normal;
+            wi = i.geometria->reflejar(wo, normal);
+            radiancia = radiancia*abs(wi*normal)
+                    * i.geometria->fr_especular(i.punto, wi, wo, i.normal);
+        } 
+        
+        else if (ev == EVENTO_REFRACCION) {
+            esCaustico = true;
+            wi = i.geometria->refractar(wo, i.normal);
+            radiancia = radiancia*abs(wi*i.normal)
+                    * i.geometria->fr_refraccion(i.punto, wi, wo, i.normal);
+        }
+        // Sigue el camino del foton
+        i = interseccion(Rayo(i.punto, wi));
+        norma = (r.p - i.punto)*(r.p - i.punto);
+    }
+}
+
+// --------------------
+
+// Bastante similar a pathtracing, excepto que utilizas la ecuacion de render de fotones
+Imagen Camara::generarImagenFotones(Escena e, int ancho, int alto, int resolucion, int rayos, 
+                MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel) {
+    Imagen imagen = Imagen(ancho, alto, resolucion);
+    for (int i = 1; i <= ancho; i++) {
+        for (int j = 1; j <= alto; j++) {
+            RGB rgb = RGB({0.0,0.0,0.0});
+            for (int k = 0; k < rayos; k++) {
+                Rayo r = generarRayo(i,j,ancho,alto);
+                Interseccion interseccion = e.interseccion(r);
+                if (interseccion.numIntersecciones > 0 && interseccion.distancia > 0.0) {
+                    // Esta es la única linea interesante, es la siguiente función
+                    rgb = rgb + e.ecuacionRenderFotones(interseccion.punto, r.d, interseccion.geometria, 
+                        interseccion.normal, mapa, kFotones, radio, guardar, kernel);
+                }
+            }
+            imagen.cambiarPixel(i,j,rgb/rayos);
+        }
+    }
+    return imagen;
+}
+
+// Hay que mirarse esta función que es la importante que genera la imágen
+RGB Escena::ecuacionRenderFotones(Punto x, Direccion wo, Geometria* geo, Direccion n, 
+            MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma) {
+    
+    // Caso base
+    if (geo->esLuzArea()) return geo->k_e;
+
+    Direccion normal = n;
+    double radioFotonMasLejano = 0.0;
+    double radioFoton = 0.0;
+    Punto posFoton;
+    RGB L= RGB({0.0,0.0,0.0});
+    EVENTO evento = geo->evento_aleatorio();
+    Punto p = x;
+    Geometria* g = geo;
+
+    // Seguimos hasta llegar a una superficie difusa, simulando el camino del foton
+    while (evento == EVENTO_ESPECULAR || evento == EVENTO_REFRACCION) {
+        // Lo mismo que más arriba
+        if (evento == EVENTO_ESPECULAR) {
+            if (wo*normal > 0.0) normal = -normal;
+            wo = g->reflejar(wo, normal);
+        } else if (evento == EVENTO_REFRACCION) {
+            wo = g->refractar(wo, normal);
+        }
+
+        // Se maneja siguiente intersección
+        Interseccion i = this->interseccion(Rayo(p,wo));
+        if (i.numIntersecciones == 0 ) {
+            evento = EVENTO_ABSORCION;
+        } else {
+            p = i.punto;
+            g = i.geometria;
+            normal = i.normal;
+            evento = g->evento_aleatorio();
+        }
+    }
+    if (evento == EVENTO_DIFUSO) {
+        if (wo*normal > 0.0) normal = -normal;
+        // Obtener fotones cercanos con radio r y máximo k
+        vector<const Foton*> fotones = mapa.nearest_neighbors(p, kFotones, radio);
+        
+        // Se obtiene el foton más lejano
+        for (const Foton* f : fotones) {
+            posFoton = f->posicion;
+            radioFoton = (posFoton - p).modulo();
+            if (radioFoton > radioFotonMasLejano) radioFotonMasLejano = radioFoton;
+        }
+        for (const Foton* f : fotones) {
+            Direccion wi = f->direccion;
+            double coseno = -normal*wi;
+            if (coseno > 0.0) {
+                posFoton = f->posicion;
+                L = L + g->fr_difuso(p, wi, wo, normal)*f->flujo
+                    *kernel->evaluar((posFoton - p).modulo(), radioFotonMasLejano);
+            }
+        }
+        // Estimacion de la luz directa
+        if (!guardar) L = L + estimacionSiguienteEvento(p, wo, g, normal, sigma);
+    } else if (evento == EVENTO_EMISION) {
+        L = L + g->k_e;
+    }
+    return L;
+}
+
+// Devuelve la luz directa en un punto de la escena sobre una geometria difusa
+RGB Escena::estimacionSiguienteEvento(Punto x, Direccion wo, Geometria* g, Direccion n, double sigma) {
+    RGB L = RGB({0.0,0.0,0.0});
+    // Recorremos todas las luces puntuales
+    // y calculamos la luz directa que llega al punto x
+    // con la BRDF de Lambert
+    for (int i = 0; i < luces.size(); i++) {
+        Direccion wi = (luces[i]->p - x).normalizado();
+        double norma = (luces[i]->p - x)*(luces[i]->p - x);
+        double coseno = n*wi;
+        RGB fr = g->fr_solo_difuso(x, wo, wi, n); // BRDF Lambertiano
+        if (coseno > 0) {
+            Interseccion interseccion = this->interseccion(Rayo(luces[i]->p,-wi));
+            if (interseccion.numIntersecciones > 0 && interseccion.distancia >= sqrt(norma) - 0.0001) {
+                if (sigma == 0.0) L = L + (coseno*fr)*(luces[i]->c/norma);
+                else L = L + (coseno*fr)*(luces[i]->c/norma)*pow(M_E, -sigma*norma);
+            }
+        }
+    }
+    return L;
+}
+
+// BRDF de refracción
+// Basicamente hay más como esta función, pero son tan poco que se puede hacer inline
+Direccion Geometria::reflejar(Direccion wi, Direccion n) {
+    return wi - 2*(wi*n)*n;
+}

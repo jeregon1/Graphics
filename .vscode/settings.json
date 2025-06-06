@@ -68,8 +68,10 @@
         "xloctime": "cpp",
         "xmemory": "cpp",
         "xtr1common": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "cool functions": "cpp"
     },
     "C_Cpp.default.compilerPath": "C:\\MinGW\\bin\\g++.exe",
-    "makefile.configureOnOpen": false, // Path to g++ compiler (Cambialo si es necesario)
+    "makefile.configureOnOpen": false,
+    "C_Cpp.errorSquiggles": "disabled", // Path to g++ compiler (Cambialo si es necesario)
 }
