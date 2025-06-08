@@ -45,6 +45,7 @@ public:
 
     Direction operator+(const Direction& other) const;
     Direction operator-(const Direction& other) const;
+    double operator*(const Direction& other) const; // Dot product
     Direction operator*(float scalar) const;
     Direction operator/(float scalar) const;
     bool operator==(const Direction& other) const;

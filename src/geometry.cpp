@@ -91,6 +91,10 @@ Direction Direction::operator-(const Direction& other) const {
     return Direction(x - other.x, y - other.y, z - other.z);
 }
 
+double Direction::operator*(const Direction& other) const {
+    return x * other.x + y * other.y + z * other.z; // Dot product
+}
+
 Direction Direction::operator*(float scalar) const {
     return Direction(x * scalar, y * scalar, z * scalar);
 }

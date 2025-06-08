@@ -41,19 +41,19 @@ Image PinholeCamera::renderRayTracing(const Scene& scene, unsigned samplesPerPix
     return Image(width, height, pixels);
 }
 
-Image PinholeCamera::renderPathTracing(const Scene& scene, unsigned samplesPerPixel) const {
+Image PinholeCamera::renderPhotonMapping(const Scene& scene, unsigned samplesPerPixel, 
+                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const {
+    
     vector<RGB> pixels(height * width);
-
+    
     for (int y = 0; y < height; y++) {
         float normalizedY = static_cast<float>(y) - (height / 2);
         for (int x = 0; x < width; x++) {
             float normalizedX = static_cast<float>(x) - (width / 2);
-            // Calculate the color of the pixel at (x, y)
-            RGB pixelColor = calculatePixelColorPathTracing(scene, normalizedX, normalizedY, samplesPerPixel);
-            pixels[y * height + x] = pixelColor;
+            RGB pixelColor = calculatePixelColorPhotonMapping(scene, normalizedX, normalizedY, samplesPerPixel);
+            pixels[y * width + x] = pixelColor;
         }
     }
-
     return Image(width, height, pixels);
 }
 
@@ -101,6 +101,29 @@ RGB PinholeCamera::calculatePixelColorRayTracing(const Scene& scene, float x, fl
 
         // Trace the ray and accumulate the color
         accumulatedColor += traceRay(ray, scene);
+    }
+
+    // Average the accumulated color
+    return accumulatedColor / samplesPerPixel;
+}
+
+RGB PinholeCamera::calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel) const {
+
+    RGB accumulatedColor(0, 0, 0);
+
+    for (unsigned i = 0; i < samplesPerPixel; i++) { // Example for image (100x100), x = 0, y = 0, samplesPerPixel = 1
+        // Generate a random offset for anti-aliasing
+        float x_offset = x + rand0_1(); // -50.5
+        float y_offset = y + rand0_1(); // -50.5
+
+        // Generate a ray through the pixel
+        Ray ray = generateRay(x_offset, y_offset);
+        optional<Intersection> interseccion = scene.intersect(ray);
+        if (interseccion) {
+            // Esta es la única linea interesante, es la siguiente función
+            accumulatedColor = accumulatedColor + scene.ecuacionRenderFotones(interseccion->point, r.d, interseccion.geometria, 
+                interseccion->normal, mapa, kFotones, radio, guardar, kernel);
+        }
     }
 
     // Average the accumulated color

@@ -24,16 +24,6 @@ Direccion muestraAnguloSolido() {
     return d;
 }
 
-// Genera una direccion aleatoria en la hemiesfera con coseno uniforme
-Direccion DireccionMuestraAleatoria::cosenoUniforme() {
-    double xi1 = (double)rand() / RAND_MAX;
-    double th = acos(sqrt(1-xi1));
-    double xi2 = (double)rand() / RAND_MAX;
-    double phi = 2*M_PI*xi2;
-    Direccion d = Direccion(sin(th)*cos(phi), sin(th)*sin(phi), cos(th));
-    return cambioBase()*d;
-}
-
 // Estas dos imágenes generan una lista de fotones en la escena
 void Escena::primerReboteFoton(Rayo r, RGB luz, list<Foton>& fotones, 
             list<Foton>& causticos, bool guardar, double sigma) {
@@ -45,10 +35,17 @@ void Escena::primerReboteFoton(Rayo r, RGB luz, list<Foton>& fotones,
     EVENTO ev;
     bool caustico = false;
 
+    // Calcular normal aquí
+
     if (i.numIntersecciones > 0) { // Si interseca la escena
+        
+        // Calcular radiancia aquí
+        
         // Si interseca con una luz de área, guardamos el fotón
         if (i.geometria->esLuzArea()) {
             // Si se pone guardar, se guarda el fotón
+
+            // Se guarda el foton, no hay que especificar que no lo hace en el primer rebote?
             if (guardar) {
                 Foton f = Foton(i.punto, wo, radiancia);
                 fotones.push_back(f);
@@ -95,6 +92,7 @@ void Escena::primerReboteFoton(Rayo r, RGB luz, list<Foton>& fotones,
             brdf = brdf *abs(wi*normal)
                     * i.geometria->fr_refraccion(i.punto, wi, wo, normal);
         }
+        
         // Sigue el camino del foton
         // Número e 2.182... es la base del logaritmo natural, se usa para simular la atenuación de la luz
         // Sigma se refiere a la atenuación de la luz, que se puede usar para simular la dispersión de la luz en el medio

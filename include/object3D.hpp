@@ -8,6 +8,9 @@
 #include "geometry.hpp"
 #include "Image.hpp"
 #include "RGB.hpp"
+#include "foton.hpp"
+#include "kernel.hpp"
+#include "utils.hpp"
 
 #define EPSILON 1e-6
 
@@ -17,16 +20,46 @@ inline float rand0_1() {
   return (float) rand() / (RAND_MAX);
 }
 
-// TODO: Igual hay que añadir algo más en Material?
 struct Material {
     RGB diffuse; // Color difuso
     RGB specular; // Color especular
-    float roughness = 0.0f; // Brillo especular
-    float ior = 1.0f; // Índice de refracción
+    RGB transparency; // Color de transparencia (no se usa en este proyecto)
+    double p_diffuse = 0.0; // Probabilidad de difuso
+    double p_specular = 0.0; // Probabilidad de especular
+    double p_transparency = 0.0; // Probabilidad de refracción
+    double n = 1.0; // Índice de refracción (no se usa en este proyecto)
     bool isEmissive = false; // Si es una fuente de luz
 
-    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), const float roughness = 1.0f, const float ior = 0.0f, bool isEmissive = false) :
-        diffuse(diffuse), specular(specular), roughness(roughness), ior(ior), isEmissive(isEmissive) {}
+    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), bool isEmissive = false) :
+        diffuse(diffuse), specular(specular), isEmissive(isEmissive) 
+        {
+            p_diffuse = diffuse.max();
+            p_specular = specular.max();
+            p_transparency = transparency.max();
+
+            double totalProbability = p_diffuse + p_specular + p_transparency;
+            if (totalProbability > 0.0) {
+                p_diffuse = 0.9 * p_diffuse / totalProbability;
+                p_specular = 0.9 * p_specular / totalProbability;
+                p_transparency = 0.9 * p_transparency / totalProbability;
+            }
+        }
+
+    Direction refractar(const Direction& wo, const Direction& normal) const {
+        // Implementación de la refracción usando la ley de Snell
+        float n1 = 1.0f; // Índice de refracción del aire
+        float n2 = n; // Índice de refracción del material 
+        float cosThetaI = -normal.dot(wo); // TODO: Porque hay un signo -
+        float sinThetaT2 = (n1 / n2) * (n1 / n2) * (1.0f - cosThetaI * cosThetaI);
+        
+        if (sinThetaT2 > 1.0f) {
+            return Direction(0, 0, 0); // Total internal reflection
+        }
+        
+        float cosThetaT = sqrt(1.0f - sinThetaT2);
+        return (wo * (n1 / n2) + normal * (n1 / n2 * cosThetaI - cosThetaT)).normalize();
+    }
+
 };
 
 struct Intersection {
@@ -90,7 +123,11 @@ public:
     std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
     
     RGB calculateDirectLight(const Point& p) const;
-    
+    MapaFotones generarMapaFotones(int nPaths, bool save, double sigma = 0.0f);
+    void reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& fotones, std::list<Foton>& causticos, bool esCaustico, bool save = false, double sigma = 0.0f);
+    RGB ecuacionRenderFotones(Point x, Direction wo, Object3D geo, Direction n, MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma = 0.0f);
+    RGB estimacionSiguienteEvento(Point x, Direction wo, Object3D g, Direction n, double sigma = 0.0f);
+
     void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
     std::string toString() const;
 };
@@ -107,6 +144,8 @@ public:
 
     Image renderRayTracing(const Scene& scene, unsigned samplesPerPixel) const;
     Image renderPathTracing(const Scene& scene, unsigned samplesPerPixel) const;
+    Image renderPhotonMapping(const Scene& scene, unsigned samplesPerPixel, 
+                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const;
 
 private:
 
@@ -119,6 +158,8 @@ private:
     RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
     RGB calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
     RGB calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
+    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
+
 };
 
 class Sphere : public Object3D {

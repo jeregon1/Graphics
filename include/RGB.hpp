@@ -33,6 +33,10 @@ struct RGB {
         return RGB(r * rgb.r, g * rgb.g, b * rgb.b);
     }
 
+    RGB operator*(const double value) const {
+        return RGB(r * value, g * value, b * value);
+    }
+
     RGB operator/(const RGB &rgb) const {
         return RGB(r / rgb.r, g / rgb.g, b / rgb.b);
     }
