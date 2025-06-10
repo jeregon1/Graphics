@@ -11,13 +11,11 @@ int main() {
 
     Scene scene;
 
-    // Planes
-    // Estas intersecciones no funcionan, no se detecta nada
-    Material redMaterial(RGB(1, 0, 0), RGB(1, 1, 1), 0.0f, 1.0f); // Red material
-    Material greenMaterial(RGB(0, 1, 0), RGB(1, 1, 1), 0.0f, 1.0f); // Green material
-    Material greyMaterial(RGB(0.5, 0.5, 0.5), RGB(1, 1, 1), 0.0f, 1.0f); // Grey material
-    Material plasticMaterial(RGB(1, 1, 1), RGB(1, 1, 1), 0.0f, 1.0f); // Plastic material
-    Material glossyMaterial(RGB(1, 1, 1), RGB(1, 1, 1), 0.5f, 1.5f); // Glossy material
+    Material redMaterial(RGB(1, 0, 0), RGB(1, 1, 1)); // Red material
+    Material greenMaterial(RGB(0, 1, 0), RGB(1, 1, 1)); // Green material
+    Material greyMaterial(RGB(0.5, 0.5, 0.5), RGB(1, 1, 1)); // Grey material
+    Material plasticMaterial(RGB(1, 1, 1), RGB(1, 1, 1)); // Plastic material
+    Material glossyMaterial(RGB(1, 1, 1), RGB(1, 1, 1)); // Glossy material
 
     scene.addObject(make_shared<Plane>(Direction(1, 0, 0), redMaterial)); // Right plane (Green)
     scene.addObject(make_shared<Plane>(Direction(-1, 0, 0), greenMaterial)); // Left plane (Red)

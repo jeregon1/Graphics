@@ -1,52 +1,60 @@
-#pragma
+#pragma once
 
-#include <cmath>
-
-// TODO: Poner solo los kernels necesarios
 class Kernel {
     public:
     Kernel() {};
+    // Cada kernel debe implementar su funcion de evaluacion
+    virtual double evaluar(double radioFoton, double radioMax) = 0;
+};
 
-    double evaluarCaja(double radioFoton, double radioMax) {
-        return 1 / (M_PI * radioMax * radioMax);
-    }
+class KernelCaja : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluarTriangular(double radioFoton, double radioMax) {
-        return (1 - radioFoton / radioMax) / (M_PI * radioMax * radioMax);
-    }
+class KernelTriangular : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluarGaussiano(double radioFoton, double radioMax, double sigma) {
-        return exp(-radioFoton * radioFoton / (2 * sigma * sigma)) /
-            (sqrt(2 * M_PI) * sigma * M_PI * radioMax * radioMax);
-    }
+class KernelGaussiano : public Kernel {
+    double sigma;
+    public:
+    KernelGaussiano(double s = 1) : sigma(s) {};
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluarEpanechnikov(double radioFoton, double radioMax) {
-        return 3.0 / (4.0 * M_PI * radioMax * radioMax) *
-            (1 - radioFoton * radioFoton / (radioMax * radioMax));
-    }
+class KernelEpanechnikov : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluarQuartic(double radioFoton, double radioMax) {
-        return 15.0 / (16.0 * M_PI * radioMax * radioMax) *
-            pow(1 - radioFoton * radioFoton / (radioMax * radioMax), 2);
-    }
+class KernelQuartic : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluarTripeso(double radioFoton, double radioMax) {
-        return 35.0 / (32.0 * M_PI * radioMax * radioMax) *
-            pow(1 - radioFoton * radioFoton / (radioMax * radioMax), 3);
-    }
+class KernelTripeso : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluarTricubo(double radioFoton, double radioMax) {
-        return 70.0 / (81.0 * M_PI * radioMax * radioMax) *
-            pow(1 - pow(radioFoton / radioMax, 3), 3);
-    }
+class KernelTricubo : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};  
 
-    double evaluarCoseno(double radioFoton, double radioMax) {
-        return 1.0 / (4.0 * radioMax * radioMax) * cos(M_PI * radioFoton / radioMax / 2.0);
-    }
+class KernelCoseno : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluarLogistico(double radioFoton, double radioMax) {
-        return 1.0 / (2.0 * radioMax * radioMax) /
-            (exp(radioFoton / radioMax) + 2.0 + exp(-radioFoton / radioMax));
-    }
+class KernelLogistico : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
+class KernelSigmoide : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
 };

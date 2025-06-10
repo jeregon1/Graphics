@@ -50,7 +50,8 @@ Image PinholeCamera::renderPhotonMapping(const Scene& scene, unsigned samplesPer
         float normalizedY = static_cast<float>(y) - (height / 2);
         for (int x = 0; x < width; x++) {
             float normalizedX = static_cast<float>(x) - (width / 2);
-            RGB pixelColor = calculatePixelColorPhotonMapping(scene, normalizedX, normalizedY, samplesPerPixel);
+            RGB pixelColor = calculatePixelColorPhotonMapping(scene, normalizedX, normalizedY, samplesPerPixel, 
+                mapa, kFotones, radio, true, kernel);
             pixels[y * width + x] = pixelColor;
         }
     }
@@ -107,7 +108,8 @@ RGB PinholeCamera::calculatePixelColorRayTracing(const Scene& scene, float x, fl
     return accumulatedColor / samplesPerPixel;
 }
 
-RGB PinholeCamera::calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel) const {
+RGB PinholeCamera::calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel,
+    MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel) const {
 
     RGB accumulatedColor(0, 0, 0);
 
@@ -121,7 +123,7 @@ RGB PinholeCamera::calculatePixelColorPhotonMapping(const Scene& scene, float x,
         optional<Intersection> interseccion = scene.intersect(ray);
         if (interseccion) {
             // Esta es la única linea interesante, es la siguiente función
-            accumulatedColor = accumulatedColor + scene.ecuacionRenderFotones(interseccion->point, r.d, interseccion.geometria, 
+            accumulatedColor = accumulatedColor + scene.ecuacionRenderFotones(interseccion->point, ray.direction, interseccion->material, 
                 interseccion->normal, mapa, kFotones, radio, guardar, kernel);
         }
     }
