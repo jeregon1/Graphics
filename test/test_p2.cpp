@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <cassert>
 #include <string>
@@ -6,8 +5,9 @@
 #include "../include/Image.hpp"
 #include "../include/toneMapping.hpp"
 
-#define ppmTestFile     "/mnt/c/Users/jesus/OneDrive/Documentos/4ºCarrera/Gráfica/Prácticas/assets/mpi_office.ppm"
-#define ppmTestFileCopy "/mnt/c/Users/jesus/OneDrive/Documentos/4ºCarrera/Gráfica/Prácticas/assets/mpi_officeCopy.ppm"
+#define ppmTestFile     "assets/mpi_office.ppm"
+#define ppmTestFileCopy "assets/mpi_officeCopy.ppm"
+const std::string OUTPUT_DIR = "test_outputs/";
 
 void test_readWritePPM(const std::string& file) {
     auto optImg = Image::readPPM(file);
@@ -17,7 +17,7 @@ void test_readWritePPM(const std::string& file) {
     }
     Image img = std::move(*optImg);
     
-    img.writePPM(ppmTestFileCopy);
+    img.writePPM(OUTPUT_DIR + ppmTestFileCopy);
 
     // Check if the file was created
     std::ifstream fileStream(ppmTestFileCopy);
@@ -53,7 +53,7 @@ void testClamp(const std::string& path) {
     }
     Image image = std::move(*optImage);
     ToneMapping::clamp(image);
-    image.writePPM("clamp.ppm");
+    image.writePPM(OUTPUT_DIR + "clamp.ppm");
 }
 
 void testEqualization(const std::string& path) {
@@ -64,7 +64,7 @@ void testEqualization(const std::string& path) {
     }
     Image image = std::move(*optImage);
     ToneMapping::equalization(image);
-    image.writePPM("equalized.ppm");
+    image.writePPM(OUTPUT_DIR + "equalized.ppm");
 }
 
 void testEqualizationClamp(const std::string& path) {
@@ -75,7 +75,7 @@ void testEqualizationClamp(const std::string& path) {
     }
     Image image = std::move(*optImage);
     ToneMapping::equalizationClamp(image);
-    image.writePPM("equalizedClamp.ppm");
+    image.writePPM(OUTPUT_DIR + "equalizedClamp.ppm");
 }
 
 void testGamma(const std::string& path) {
@@ -86,7 +86,7 @@ void testGamma(const std::string& path) {
     }
     Image image = std::move(*optImage);
     ToneMapping::gamma(image);
-    image.writePPM("gamma.ppm");
+    image.writePPM(OUTPUT_DIR + "gamma.ppm");
 }
 
 void testClampGamma(const std::string& path) {
@@ -97,7 +97,7 @@ void testClampGamma(const std::string& path) {
     }
     Image image = std::move(*optImage);
     ToneMapping::clampGamma(image);
-    image.writePPM("clampGamma.ppm");
+    image.writePPM(OUTPUT_DIR + "clampGamma.ppm");
 }
 
 void test_toneMapping(const std::string& path) {
@@ -117,7 +117,7 @@ void test_readWriteBMP(const std::string& file) {
     }
     Image img1 = std::move(*optImg1);
     
-    img1.writeBMP("test.bmp");
+    img1.writeBMP(OUTPUT_DIR + "test.bmp");
 
     // Check if the file was created
     std::ifstream fileStream("test.bmp");
@@ -153,12 +153,8 @@ void test_readWriteBMP(const std::string& file) {
     }
 }
 
-int main() {
-    // test_readWritePPM(ppmTestFile);
-
-    // test_toneMapping(ppmTestFile);
-
-    test_readWriteBMP(ppmTestFile);
-    
-    return 0;
+void run_p2_tests(const std::string& file = ppmTestFile) {
+    test_readWritePPM(file);
+    test_toneMapping(file);
+    test_readWriteBMP(file);
 }

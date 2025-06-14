@@ -5,9 +5,8 @@
 #include <sstream>
 #include <array>
 
-using namespace std;
 
-using Matrix4x4 = array<array<float, 4>, 4>;
+using Matrix4x4 = std::array<std::array<float, 4>, 4>;
 
 class Coordinate {
 public:
@@ -17,9 +16,9 @@ public:
 
     const float& operator[](int index) const;
 
-    virtual string toString() const;
+    virtual std::string toString() const;
 
-    friend ostream& operator<<(ostream& os, const Coordinate& c);
+    friend std::ostream& operator<<(std::ostream& os, const Coordinate& c);
 };
 
 
@@ -34,7 +33,7 @@ public:
     Direction operator-(const Point& p2) const;
     Point operator*(float scalar) const;
     Point operator+(const Direction& other) const;
-    string toString() const override;
+    std::string toString() const override;
 };
 
 class Direction : public Coordinate {
@@ -56,7 +55,7 @@ public:
 
 class Transform {
 private:
-    static array<float, 4> multiplyMatrixByVector(const Matrix4x4& matrix, const float vector[4]);
+    static std::array<float, 4> multiplyMatrixByVector(const Matrix4x4& matrix, const float vector[4]);
 
 public:
     static Coordinate translate(const Coordinate& axis, const Point& point);

@@ -8,9 +8,9 @@ CXXFLAGS = -g --debug -O0 -std=c++20 -Wall -Wextra -Iinclude
 LIB_SRCS = $(filter-out src/tonemap_cli.cpp, $(wildcard src/*.cpp))
 LIB_OBJS = $(LIB_SRCS:src/%.cpp=build/%.o)
 
-# Test executable
-TEST_SRCS = $(LIB_SRCS) test/test_cornell_box.cpp
-TEST_OBJS = $(TEST_SRCS:src/%.cpp=build/%.o)
+# Test source files (all test files needed for unified test system)
+TEST_SRC_FILES = test/test_main.cpp test/test_p2.cpp test/test_parallel.cpp test/test_cornell_box.cpp test/test_bmp.cpp test/test_geometry.cpp test/test_intersect.cpp
+TEST_OBJS = $(LIB_OBJS) $(TEST_SRC_FILES:test/%.cpp=build/test_%.o)
 TEST_EXEC = build/test
 
 # CLI executable  
@@ -18,15 +18,10 @@ CLI_SRCS = $(LIB_SRCS) src/tonemap_cli.cpp
 CLI_OBJS = $(CLI_SRCS:src/%.cpp=build/%.o)
 CLI_EXEC = build/tonemap
 
-# BMP test executable
-BMP_TEST_SRCS = $(LIB_SRCS) test/test_bmp.cpp
-BMP_TEST_OBJS = $(BMP_TEST_SRCS:src/%.cpp=build/%.o)
-BMP_TEST_EXEC = build/test_bmp
-
 # Default target
-all: $(TEST_EXEC) $(CLI_EXEC) $(BMP_TEST_EXEC)
+all: $(TEST_EXEC) $(CLI_EXEC)
 
-# Build the test executable
+# Build the unified test executable
 $(TEST_EXEC): $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
@@ -34,29 +29,40 @@ $(TEST_EXEC): $(TEST_OBJS)
 $(CLI_EXEC): $(CLI_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-# Build the BMP test executable
-$(BMP_TEST_EXEC): $(BMP_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
 # Build object files
 build/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-build/%.o: test/%.cpp
+# Build test object files with different naming
+build/test_%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Clean up
 clean:
-	rm -f build/*.o $(TEST_EXEC) $(CLI_EXEC) $(BMP_TEST_EXEC)
+	rm -f build/*.o $(TEST_EXEC) $(CLI_EXEC)
 
 # Run tests
 test: $(TEST_EXEC)
-	./$(TEST_EXEC)
+	./$(TEST_EXEC) all
 
-# Test BMP functionality
-test-bmp: $(BMP_TEST_EXEC)
-	@echo "Running BMP format tests..."
-	./$(BMP_TEST_EXEC)
+# Run specific test groups
+test-p2: $(TEST_EXEC)
+	./$(TEST_EXEC) p2
+
+test-parallel: $(TEST_EXEC)
+	./$(TEST_EXEC) parallel
+
+test-cornell: $(TEST_EXEC)
+	./$(TEST_EXEC) cornell_box
+
+test-bmp: $(TEST_EXEC)
+	./$(TEST_EXEC) bmp
+
+test-geometry: $(TEST_EXEC)
+	./$(TEST_EXEC) geometry
+
+test-intersect: $(TEST_EXEC)
+	./$(TEST_EXEC) intersect
 
 # Quick test of CLI
 test-cli: $(CLI_EXEC)
@@ -72,4 +78,4 @@ test-cli: $(CLI_EXEC)
 		echo "Sample file assets/mpi_office.ppm not found"; \
 	fi
 
-.PHONY: all clean test test-bmp test-cli
+.PHONY: all clean test test-p2 test-parallel test-cornell test-bmp test-geometry test-intersect test-cli

@@ -9,7 +9,7 @@ using namespace std;
 
 void test_translate() {
     Direction axis(1, 2, 3);
-    Point point(Coordinate(0, 0, 0), 4, 5, 6);
+    Point point(4, 5, 6);
     Coordinate result = Transform::translate(axis, point);
     assert(result.x == 5);
     assert(result.y == 7);
@@ -53,12 +53,10 @@ void test_scale() {
     std::cout << "test_scale passed!" << std::endl;
 }
 
-// int main() {
-//     test_translate();
-//     test_rotate_x();
-//     test_rotate_y();
-//     test_rotate_z();
-//     test_scale();
-//     std::cout << "All tests passed!" << std::endl;
-//     return 0;
-// }
+void run_geometry_tests() {
+    test_translate();
+    test_rotate_x();
+    test_rotate_y();
+    test_rotate_z();
+    test_scale();
+}

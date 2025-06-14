@@ -1,4 +1,6 @@
 #include "../include/parallel_renderer.hpp"
+#include "../include/pinholeCamera.hpp"
+#include "../include/rendering_strategy.hpp"
 #include <chrono>
 #include <iostream>
 #include <algorithm>
@@ -43,7 +45,7 @@ void StandardTaskQueue::finish() {
 /**
  * TaskGenerator Implementation
  */
-std::vector<RenderTask> TaskGenerator::generateTasks(int width, int height, const ParallelConfig& config) {
+std::vector<RenderTask> TaskGenerator::generateTasks(int width, int height, const RenderConfig& config) {
     switch (config.regionType) {
         case RegionType::PIXEL:
             return generatePixelTasks(width, height);
@@ -130,208 +132,81 @@ std::unique_ptr<TaskQueue> QueueFactory::createQueue(QueueType type) {
 /**
  * ParallelRenderer Implementation
  */
-ParallelRenderer::ParallelRenderer(const ParallelConfig& config) 
+ParallelRenderer::ParallelRenderer(const RenderConfig& config)
     : config_(config) {}
 
-Image ParallelRenderer::renderPathTracing(const PinholeCamera& camera, const Scene& scene,
-                                         unsigned samplesPerPixel) {
-    auto startTime = std::chrono::high_resolution_clock::now();
-    
-    int width = camera.getWidth();
-    int height = camera.getHeight();
-    
-    // Generate tasks
-    std::vector<RenderTask> tasks = TaskGenerator::generateTasks(width, height, config_);
-    
-    // Initialize pixel buffer
-    std::vector<RGB> pixels(width * height);
-    
-    // Reset task queue
-    auto taskQueue = QueueFactory::createQueue(config_.queueType);
-    
-    // Add tasks to queue
-    for (const auto& task : tasks) {
-        taskQueue->push(task);
-    }
-    
-    // Launch worker threads
-    std::vector<std::thread> workers;
-    std::atomic<int> completedTasks(0);
-    
-    for (int i = 0; i < config_.numThreads; ++i) {
-        workers.emplace_back([&taskQueue, &camera, &scene, samplesPerPixel, &pixels, width, height, &completedTasks]() {
-            RenderTask task(0, 0, 0, 0);
-            
-            while (taskQueue->pop(task)) {
-                // Render the assigned region
-                for (int y = task.startY; y < task.endY; ++y) {
-                    float normalizedY = static_cast<float>(y) - (height / 2.0f);
-                    
-                    for (int x = task.startX; x < task.endX; ++x) {
-                        float normalizedX = static_cast<float>(x) - (width / 2.0f);
-                        
-                        RGB pixelColor = camera.calculatePixelColorPathTracing(scene, normalizedX, normalizedY, samplesPerPixel);
-                        pixels[y * width + x] = pixelColor;
-                    }
-                }
-                
-                completedTasks.fetch_add(1);
-            }
-        });
-    }
-    
-    // Signal completion and wait for workers
-    static_cast<StandardTaskQueue*>(taskQueue.get())->finish();
-    
-    for (auto& worker : workers) {
-        worker.join();
-    }
-    
-    auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-    
-    // Update statistics
-    lastStats_.renderTime = duration.count() / 1000.0;
-    lastStats_.numTasks = static_cast<int>(tasks.size());
-    lastStats_.numThreads = config_.numThreads;
-    lastStats_.regionType = config_.regionType;
-    lastStats_.regionSize = config_.regionSize;
-    
-    return Image(width, height, pixels);
+// Unified parallel render entry point
+Image ParallelRenderer::render(const PinholeCamera& camera,
+                               const Scene& scene,
+                               unsigned samplesPerPixel,
+                               const RenderConfig& cfg) {
+    config_ = cfg;
+    return runParallel(camera, scene, samplesPerPixel, cfg);
 }
 
-Image ParallelRenderer::renderRayTracing(const PinholeCamera& camera, const Scene& scene,
-                                        unsigned samplesPerPixel) {
+// Updated signature: drop explicit algorithm parameter
+Image ParallelRenderer::runParallel(
+    const PinholeCamera& camera,
+    const Scene& scene,
+    unsigned samplesPerPixel,
+    const RenderConfig& cfg
+) const {
     auto startTime = std::chrono::high_resolution_clock::now();
-    
-    int width = camera.getWidth();
-    int height = camera.getHeight();
-    
-    // Generate tasks
-    std::vector<RenderTask> tasks = TaskGenerator::generateTasks(width, height, config_);
-    
-    // Initialize pixel buffer
-    std::vector<RGB> pixels(width * height);
-    
-    // Reset task queue
-    auto taskQueue = QueueFactory::createQueue(config_.queueType);
-    
-    // Add tasks to queue
-    for (const auto& task : tasks) {
-        taskQueue->push(task);
-    }
-    
-    // Launch worker threads
-    std::vector<std::thread> workers;
-    std::atomic<int> completedTasks(0);
-    
-    for (int i = 0; i < config_.numThreads; ++i) {
-        workers.emplace_back([&taskQueue, &camera, &scene, samplesPerPixel, &pixels, width, height, &completedTasks]() {
-            RenderTask task(0, 0, 0, 0);
-            
-            while (taskQueue->pop(task)) {
-                // Render the assigned region
-                for (int y = task.startY; y < task.endY; ++y) {
-                    float normalizedY = static_cast<float>(y) - (height / 2.0f);
-                    
-                    for (int x = task.startX; x < task.endX; ++x) {
-                        float normalizedX = static_cast<float>(x) - (width / 2.0f);
-                        
-                        RGB pixelColor = camera.calculatePixelColorRayTracing(scene, normalizedX, normalizedY, samplesPerPixel);
-                        pixels[y * width + x] = pixelColor;
-                    }
-                }
-                
-                completedTasks.fetch_add(1);
-            }
-        });
-    }
-    
-    // Signal completion and wait for workers
-    static_cast<StandardTaskQueue*>(taskQueue.get())->finish();
-    
-    for (auto& worker : workers) {
-        worker.join();
-    }
-    
-    auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-    
-    // Update statistics  
-    lastStats_.renderTime = duration.count() / 1000.0;
-    lastStats_.numTasks = static_cast<int>(tasks.size());
-    lastStats_.numThreads = config_.numThreads;
-    lastStats_.regionType = config_.regionType;
-    lastStats_.regionSize = config_.regionSize;
-    
-    return Image(width, height, pixels);
-}
 
-Image ParallelRenderer::renderPhotonMapping(const PinholeCamera& camera, const Scene& scene,
-                                           unsigned samplesPerPixel, MapaFotones mapa,
-                                           unsigned kFotones, double radio, Kernel* kernel) {
-    auto startTime = std::chrono::high_resolution_clock::now();
-    
     int width = camera.getWidth();
     int height = camera.getHeight();
-    
-    // Generate tasks
-    std::vector<RenderTask> tasks = TaskGenerator::generateTasks(width, height, config_);
-    
-    // Initialize pixel buffer
+
+    auto tasks = TaskGenerator::generateTasks(width, height, cfg);
+
     std::vector<RGB> pixels(width * height);
-    
-    // Reset task queue
-    auto taskQueue = QueueFactory::createQueue(config_.queueType);
-    
-    // Add tasks to queue
-    for (const auto& task : tasks) {
-        taskQueue->push(task);
+    auto taskQueue = QueueFactory::createQueue(cfg.queueType);
+
+    for (auto& t : tasks) {
+        taskQueue->push(t);
     }
-    
-    // Launch worker threads
+
+    // Pick strategy from cfg.algorithm
+    auto strategy = StrategyFactory::createStrategy(cfg.algorithm);
+
     std::vector<std::thread> workers;
-    std::atomic<int> completedTasks(0);
-    
-    for (int i = 0; i < config_.numThreads; ++i) {
-        workers.emplace_back([&taskQueue, &camera, &scene, samplesPerPixel, mapa, kFotones, radio, kernel, &pixels, width, height, &completedTasks]() {
+
+    for (int i = 0; i < cfg.numThreads; ++i) {
+        workers.emplace_back([&, width, height]() {
             RenderTask task(0, 0, 0, 0);
-            
+
             while (taskQueue->pop(task)) {
-                // Render the assigned region
                 for (int y = task.startY; y < task.endY; ++y) {
-                    float normalizedY = static_cast<float>(y) - (height / 2.0f);
-                    
+                    float ny = float(y) - (height / 2.0f);
+
                     for (int x = task.startX; x < task.endX; ++x) {
-                        float normalizedX = static_cast<float>(x) - (width / 2.0f);
-                        
-                        RGB pixelColor = camera.calculatePixelColorPhotonMapping(scene, normalizedX, normalizedY, samplesPerPixel, mapa, kFotones, radio, false, kernel);
-                        pixels[y * width + x] = pixelColor;
+                        float nx = float(x) - (width / 2.0f);
+
+                        pixels[y * width + x] = strategy->calculatePixelColor(
+                            camera, scene, nx, ny, samplesPerPixel, cfg
+                        );
                     }
                 }
-                
-                completedTasks.fetch_add(1);
             }
         });
     }
-    
-    // Signal completion and wait for workers
+
     static_cast<StandardTaskQueue*>(taskQueue.get())->finish();
-    
-    for (auto& worker : workers) {
-        worker.join();
+
+    for (auto& w : workers) {
+        w.join();
     }
-    
+
     auto endTime = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-    
-    // Update statistics
-    lastStats_.renderTime = duration.count() / 1000.0;
-    lastStats_.numTasks = static_cast<int>(tasks.size());
-    lastStats_.numThreads = config_.numThreads;
-    lastStats_.regionType = config_.regionType;
-    lastStats_.regionSize = config_.regionSize;
-    
+    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+
+    lastStats_ = {
+        dur.count() / 1000.0,
+        int(tasks.size()),
+        cfg.numThreads,
+        cfg.regionType,
+        cfg.regionSize
+    };
+
     return Image(width, height, pixels);
 }
 
@@ -339,69 +214,58 @@ Image ParallelRenderer::renderPhotonMapping(const PinholeCamera& camera, const S
  * RenderBenchmark Implementation
  */
 void RenderBenchmark::benchmarkConfigurations(const PinholeCamera& camera, const Scene& scene,
-                                             const std::vector<ParallelConfig>& configs,
+                                             const std::vector<RenderConfig>& configs,
                                              unsigned samplesPerPixel) {
     std::cout << "=== Parallel Rendering Benchmark ===\n";
     std::cout << "Configuration\t\tTime(s)\t\tTasks\t\tThreads\n";
     std::cout << "-------------------------------------------------------\n";
-    
-    for (const auto& config : configs) {
-        ParallelRenderer renderer(config);
-        
+    for (const auto& cfg : configs) {
+        ParallelRenderer renderer(cfg);
         auto startTime = std::chrono::high_resolution_clock::now();
-        renderer.renderPathTracing(camera, scene, samplesPerPixel);
+        renderer.render(camera, scene, samplesPerPixel, cfg);
         auto endTime = std::chrono::high_resolution_clock::now();
-        
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         auto stats = renderer.getLastRenderStats();
-        
         std::string regionName;
-        switch (config.regionType) {
+        switch (cfg.regionType) {
             case RegionType::PIXEL: regionName = "PIXEL"; break;
             case RegionType::LINE: regionName = "LINE"; break;
             case RegionType::COLUMN: regionName = "COLUMN"; break;
             case RegionType::RECTANGLE: regionName = "RECTANGLE"; break;
         }
-        
-        std::cout << regionName << "(" << config.regionSize << ")\t\t"
+        std::cout << regionName << "(" << cfg.regionSize << ")\t\t"
                   << duration.count() / 1000.0 << "\t\t"
                   << stats.numTasks << "\t\t"
                   << stats.numThreads << "\n";
     }
 }
 
-ParallelConfig RenderBenchmark::findOptimalConfig(const PinholeCamera& camera, const Scene& scene,
-                                                 unsigned samplesPerPixel) {
-    std::vector<ParallelConfig> configs = {
-        ParallelConfig(RegionType::RECTANGLE, 16),
-        ParallelConfig(RegionType::RECTANGLE, 32),
-        ParallelConfig(RegionType::RECTANGLE, 64),
-        ParallelConfig(RegionType::LINE, 1),
-        ParallelConfig(RegionType::LINE, 4),
-        ParallelConfig(RegionType::LINE, 8),
-        ParallelConfig(RegionType::COLUMN, 1),
-        ParallelConfig(RegionType::COLUMN, 4),
-        ParallelConfig(RegionType::COLUMN, 8)
+RenderConfig RenderBenchmark::findOptimalConfig(const PinholeCamera& camera, const Scene& scene,
+                                               unsigned samplesPerPixel) {
+    std::vector<RenderConfig> configs = {
+        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=16; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=32; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=64; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=1; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=4; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=8; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::COLUMN; c.regionSize=1; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::COLUMN; c.regionSize=4; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::COLUMN; c.regionSize=8; c.numThreads=4; return c; }(),
     };
-    
-    ParallelConfig bestConfig = configs[0];
+    RenderConfig bestConfig = configs[0];
     double bestTime = std::numeric_limits<double>::max();
-    
-    for (const auto& config : configs) {
-        ParallelRenderer renderer(config);
-        
+    for (const auto& cfg : configs) {
+        ParallelRenderer renderer(cfg);
         auto startTime = std::chrono::high_resolution_clock::now();
-        renderer.renderPathTracing(camera, scene, samplesPerPixel);
+        renderer.render(camera, scene, samplesPerPixel, cfg);
         auto endTime = std::chrono::high_resolution_clock::now();
-        
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         double time = duration.count() / 1000.0;
-        
         if (time < bestTime) {
             bestTime = time;
-            bestConfig = config;
+            bestConfig = cfg;
         }
     }
-    
     return bestConfig;
 }

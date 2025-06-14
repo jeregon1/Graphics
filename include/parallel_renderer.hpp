@@ -11,6 +11,7 @@
 
 #include "object3D.hpp"
 #include "Image.hpp"
+#include "render_config.hpp"
 
 // Forward declarations
 class Scene;
@@ -30,19 +31,6 @@ enum class QueueType {
     STD_QUEUE,          // Standard queue with mutex
     LOCK_FREE_QUEUE,    // Future: lock-free implementation
     WORK_STEALING       // Future: work-stealing queue
-};
-
-struct ParallelConfig {
-    RegionType regionType = RegionType::RECTANGLE;
-    QueueType queueType = QueueType::STD_QUEUE;
-    int regionSize = 32;        // Size for blocks/lines/columns
-    int numThreads = std::thread::hardware_concurrency();
-    bool useAcceleration = false;  // For future KD-tree integration
-    
-    ParallelConfig() = default;
-    ParallelConfig(RegionType rt, int rs, int nt = 0) 
-        : regionType(rt), regionSize(rs), 
-          numThreads(nt > 0 ? nt : std::thread::hardware_concurrency()) {}
 };
 
 /**
@@ -93,7 +81,7 @@ public:
 class TaskGenerator {
 public:
     static std::vector<RenderTask> generateTasks(
-        int width, int height, const ParallelConfig& config);
+        int width, int height, const RenderConfig& config);
 
 private:
     static std::vector<RenderTask> generatePixelTasks(int width, int height);
@@ -107,7 +95,7 @@ private:
  */
 class ParallelRenderer {
 private:
-    ParallelConfig config_;
+    RenderConfig config_;
     std::unique_ptr<TaskQueue> taskQueue_;
     
     // Worker thread function
@@ -116,22 +104,15 @@ private:
                      int width, int height, std::atomic<int>& completedTasks);
 
 public:
-    explicit ParallelRenderer(const ParallelConfig& config = ParallelConfig());
-    
-    // Main rendering methods
-    Image renderRayTracing(const PinholeCamera& camera, const Scene& scene, 
-                          unsigned samplesPerPixel);
-    
-    Image renderPathTracing(const PinholeCamera& camera, const Scene& scene, 
-                           unsigned samplesPerPixel);
-    
-    Image renderPhotonMapping(const PinholeCamera& camera, const Scene& scene, 
-                             unsigned samplesPerPixel, MapaFotones mapa, 
-                             unsigned kFotones, double radio, Kernel* kernel);
-    
+    explicit ParallelRenderer(const RenderConfig& config = RenderConfig());
+
+    // Unified render method picks algorithm from config.algorithm
+    Image render(const PinholeCamera& camera, const Scene& scene,
+                 unsigned samplesPerPixel, const RenderConfig& cfg);
+
     // Configuration
-    void setConfig(const ParallelConfig& config) { config_ = config; }
-    const ParallelConfig& getConfig() const { return config_; }
+    void setConfig(const RenderConfig& config) { config_ = config; }
+    const RenderConfig& getConfig() const { return config_; }
     
     // Statistics
     struct RenderStats {
@@ -146,11 +127,10 @@ public:
 
 private:
     mutable RenderStats lastStats_;
-    
-    // Generic parallel rendering template
-    template<typename RenderFunc>
-    Image parallelRender(const PinholeCamera& camera, const Scene& scene,
-                        int width, int height, RenderFunc renderFunc) const;
+    // Generic parallel runner
+    Image runParallel(const PinholeCamera& camera, const Scene& scene,
+                     unsigned samplesPerPixel,
+                     const RenderConfig& cfg) const;
 };
 
 /**
@@ -167,9 +147,8 @@ public:
 class RenderBenchmark {
 public:
     static void benchmarkConfigurations(const PinholeCamera& camera, const Scene& scene,
-                                       const std::vector<ParallelConfig>& configs,
+                                       const std::vector<RenderConfig>& configs,
                                        unsigned samplesPerPixel = 4);
-    
-    static ParallelConfig findOptimalConfig(const PinholeCamera& camera, const Scene& scene,
-                                          unsigned samplesPerPixel = 4);
+    static RenderConfig findOptimalConfig(const PinholeCamera& camera, const Scene& scene,
+                                         unsigned samplesPerPixel = 4);
 };

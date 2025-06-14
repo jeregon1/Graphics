@@ -5,35 +5,15 @@
 #include <memory>
 #include <string>
 #include <list>
-#include <cstdlib>
-#include <ctime>
-#include <cmath>
+#include <fstream>
+#include <sstream>
 
 #include "geometry.hpp"
-#include "Image.hpp"
 #include "RGB.hpp"
 #include "foton.hpp"
 #include "kernel.hpp"
 #include "utils.hpp"
 
-// Forward declarations
-struct ParallelConfig;
-
-#define EPSILON 1e-6
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-#ifndef M_E
-#define M_E 2.71828182845904523536
-#endif
-
-static bool const dummy = (srand(time(NULL)), true);
-
-inline float rand0_1() {
-  return (float) rand() / (RAND_MAX);
-}
 
 struct Material {
     RGB diffuse; // Color difuso
@@ -116,8 +96,7 @@ public:
     Point center;
     RGB light;
 
-    // Hay que sobreescribir el material porque es el valor de emisión y no puede ser (1, 1, 1)
-    PointLight(const Point& center, const RGB& material) : center(center), light(material) {}
+    PointLight(const Point& center, const RGB& emission) : center(center), light(emission) {}
 
     std::string toString() const;
 
@@ -145,58 +124,9 @@ public:
  
     void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
     std::string toString() const;
-};
 
-class PinholeCamera {
-public:
- 
-    PinholeCamera(const Point& origin) : PinholeCamera(origin, 50, 256, 256) {};
-
-    PinholeCamera(const Point& origin, const int FOV, const int width, const int height);
-
-    PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
-        : origin(origin), left(left.normalize()), up(up.normalize()), forward(forward), width(width), height(height) {}
-
-    Image renderRayTracing(const Scene& scene, unsigned samplesPerPixel) const;
-    Image renderPathTracing(const Scene& scene, unsigned samplesPerPixel) const;
-    Image renderPhotonMapping(const Scene& scene, unsigned samplesPerPixel, 
-                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const;
-
-    // Sequential rendering methods (for comparison/fallback)
-    Image renderRayTracingSequential(const Scene& scene, unsigned samplesPerPixel) const;
-    Image renderPathTracingSequential(const Scene& scene, unsigned samplesPerPixel) const;
-    Image renderPhotonMappingSequential(const Scene& scene, unsigned samplesPerPixel, 
-                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const;
-
-    // Parallel rendering methods
-    Image renderRayTracingParallel(const Scene& scene, unsigned samplesPerPixel,
-                                  const struct ParallelConfig& config) const;
-    Image renderPathTracingParallel(const Scene& scene, unsigned samplesPerPixel,
-                                   const struct ParallelConfig& config) const;
-    Image renderPhotonMappingParallel(const Scene& scene, unsigned samplesPerPixel,
-                                     MapaFotones mapa, unsigned kFotones, double radio,
-                                     Kernel* kernel, const struct ParallelConfig& config) const;
-
-    // Accessors for parallel rendering
-    int getWidth() const { return width; }
-    int getHeight() const { return height; }
-
-public:  // Make pixel color calculation methods public for parallel access
-    RGB calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
-    RGB calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
-    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel,
-    MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel) const;
-
-private:
-
-    Point origin;
-    Direction left, up, forward;
-    int width, height;
-
-    Ray generateRay(float x, float y) const;
-    RGB traceRay(const Ray& ray, const Scene& scene) const;
-    RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
-
+    // Simple YAML-like scene loader (no external libs)
+    static Scene fromYAML(const std::string& filename); // Declaration only
 };
 
 class Sphere : public Object3D {
@@ -272,3 +202,43 @@ public:
 };
 
 // Ellipsoid, disk
+
+// Implementation of Scene::fromYAML
+inline Scene Scene::fromYAML(const std::string& filename) {
+    Scene scene;
+    std::ifstream file(filename);
+    std::string line;
+    Material currentMaterial;
+    while (std::getline(file, line)) {
+        // Trim whitespace
+        size_t first = line.find_first_not_of(" \\t\\r\\n");
+        if (first == std::string::npos) continue; // skip empty/whitespace lines
+        line = line.substr(first);
+        if (line.empty()) continue;
+        std::istringstream iss(line);
+        std::string keyword;
+        iss >> keyword;
+        if (keyword == "background:") {
+            float r, g, b;
+            iss >> r >> g >> b;
+            scene.backgroundColor = RGB(r, g, b);
+        } else if (keyword == "material:") {
+            float r, g, b;
+            iss >> r >> g >> b;
+            currentMaterial = Material(RGB(r, g, b), RGB(0,0,0));
+        } else if (keyword == "sphere:") {
+            float x, y, z, radius;
+            iss >> x >> y >> z >> radius;
+            scene.addObject(std::make_shared<Sphere>(Point(x, y, z), radius, currentMaterial));
+        } else if (keyword == "plane:") {
+            float nx, ny, nz, d;
+            iss >> nx >> ny >> nz >> d;
+            scene.addObject(std::make_shared<Plane>(Direction(nx, ny, nz), currentMaterial, (int)d));
+        } else if (keyword == "light:") {
+            float x, y, z, r, g, b;
+            iss >> x >> y >> z >> r >> g >> b;
+            scene.addLight(std::make_shared<PointLight>(Point(x, y, z), RGB(r, g, b)));
+        }
+    }
+    return scene;
+}

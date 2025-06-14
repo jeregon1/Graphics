@@ -3,45 +3,62 @@
 #include <memory>
 
 #include "../include/object3D.hpp"
+#include "../include/pinholeCamera.hpp"
 #include "../include/Image.hpp"
 
 using namespace std;
 
-int main() {
+void run_cornell_box_test() {
 
     Scene scene;
 
-    // Planes
-    // Estas intersecciones no funcionan, no se detecta nada
-    Material redMaterial(RGB(1, 0, 0), RGB(0, 0, 0)); // Red material
-    Material greenMaterial(RGB(0, 1, 0), RGB(0, 0, 0)); // Green material
-    Material greyMaterial(RGB(0.5, 0.5, 0.5), RGB(0, 0, 0)); // Grey material
-    Material plasticMaterial(RGB(1, 1, 1), RGB(0.1, 0.1, 0.1)); // Plastic material
-    Material glossyMaterial(RGB(1, 1, 1), RGB(0.5, 0.5, 0.5)); // Glossy material
+    // Materials
+    Material redMaterial(RGB(0.8, 0.2, 0.2), RGB(0, 0, 0)); 
+    Material greenMaterial(RGB(0.2, 0.8, 0.2), RGB(0, 0, 0)); 
+    Material blueMaterial(RGB(0.2, 0.2, 0.8), RGB(0, 0, 0)); 
+    Material greyMaterial(RGB(0.5, 0.5, 0.5), RGB(0, 0, 0)); 
+    Material plasticMaterial(RGB(0.9, 0.9, 0.9), RGB(0.1, 0.1, 0.1)); 
+    Material glossyMaterial(RGB(0.8, 0.8, 0.8), RGB(0.5, 0.5, 0.5)); 
+    Material yellowMaterial(RGB(0.8, 0.8, 0.2), RGB(0, 0, 0));
+    Material purpleMaterial(RGB(0.8, 0.2, 0.8), RGB(0, 0, 0));
 
-    scene.addObject(make_shared<Plane>(Direction(1, 0, 0), redMaterial)); // Right plane (Green)
-    scene.addObject(make_shared<Plane>(Direction(-1, 0, 0), greenMaterial)); // Left plane (Red)
-    scene.addObject(make_shared<Plane>(Direction(0, 1, 0), greyMaterial)); // Floor plane 
-    scene.addObject(make_shared<Plane>(Direction(0, -1, 0), greyMaterial)); // Ceiling plane 
-    scene.addObject(make_shared<Plane>(Direction(0, 0, 1), greyMaterial)); // Back plane 
+    // Cornell Box walls
+    scene.addObject(make_shared<Plane>(Direction(1, 0, 0), redMaterial, 1)); // Right wall (red)
+    scene.addObject(make_shared<Plane>(Direction(-1, 0, 0), greenMaterial, 1)); // Left wall (green)
+    scene.addObject(make_shared<Plane>(Direction(0, 1, 0), greyMaterial, 1)); // Floor 
+    scene.addObject(make_shared<Plane>(Direction(0, -1, 0), greyMaterial, 1)); // Ceiling
+    scene.addObject(make_shared<Plane>(Direction(0, 0, 1), greyMaterial, 2)); // Back wall
 
-    // Spheres-
-    // Estas intersecciones funcionan pero se detecta rarote
-    scene.addObject(make_shared<Sphere>(Point(-0.5, 0.7, 0.25), 0.3, plasticMaterial)); // Left sphere
-    scene.addObject(make_shared<Sphere>(Point(0.5, 0.7, -0.25), 0.3, glossyMaterial)); // Right sphere
+    // Test all primitives positioned properly within the cornell box
+    // Spheres
+    scene.addObject(make_shared<Sphere>(Point(-0.4, -0.3, 0.3), 0.2, plasticMaterial)); 
+    scene.addObject(make_shared<Sphere>(Point(0.4, -0.3, -0.3), 0.2, glossyMaterial)); 
 
-    // Lights
-    shared_ptr<PointLight> shared_pointLight = make_shared<PointLight>(Point(0, 0.15, 0), RGB(1, 1, 1)); // Light source
-    scene.addLight(shared_pointLight); // Light source
+    // Triangle
+    scene.addObject(make_shared<Triangle>(
+        Point(-0.3, 0.2, 0.5), Point(0.0, -0.1, 0.5), Point(0.3, 0.2, 0.5), 
+        blueMaterial));
 
-    // Camera
-    PinholeCamera camera(Point(0, 0, -3.5), 1, 256, 256);
+    // Cylinder - positioned on the floor
+    scene.addObject(make_shared<Cylinder>(
+        Point(-0.4, -1.0, -0.2), Direction(0, 1, 0), 0.1, 0.4, 
+        yellowMaterial));
 
-    // Render
-    Image image = camera.renderPathTracing(scene, 64);
-    image.writePPM("output.ppm");
-    //image.writeBMP("output.bmp");
+    // Cone - positioned on the floor
+    scene.addObject(make_shared<Cone>(
+        Point(0.3, -1.0, -0.4), Direction(0, 1, 0), 0.15, 0.5, 
+        purpleMaterial));
 
-    return 0;
+    // Light positioned inside the box
+    shared_ptr<PointLight> shared_pointLight = make_shared<PointLight>(Point(0, 0.5, 0), RGB(8, 8, 8)); 
+    scene.addLight(shared_pointLight); 
+
+    // Camera positioned closer to see all objects
+    PinholeCamera camera(Point(0, 0, -0.5), 45, 512, 512);
+
+    cout << "Rendering scene with all primitives..." << endl;
+    Image image = camera.renderPathTracing(scene, 16);  // Reduced samples for faster testing
+    image.writePPM("test_all_primitives.ppm");
+    cout << "Rendered to test_all_primitives.ppm" << endl;
 }
 

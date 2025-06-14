@@ -1,6 +1,15 @@
+#include "constants.hpp"
 #include "../include/object3D.hpp"
 
 #include <vector>
+#include <memory>
+#include <optional>
+#include <list>
+#include <string>
+#include <sstream>
+#include <fstream>
+
+using namespace std;
 
 /*******
  * Ray *
@@ -114,7 +123,7 @@ void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones,
         */
 
         Material material = intersection->material;
-        double probability = (double) rand0_1(); // Probabilidad aleatoria entre 0 y 1
+        double probability = rand0_1(); // Probabilidad aleatoria entre 0 y 1
         
         // Difuso
         if (probability <= material.p_diffuse) { 
@@ -185,7 +194,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
     Point posFoton;
     RGB L = RGB(0, 0, 0);
 
-    double probability = (double) rand0_1(); // Probabilidad aleatoria entre 0 y 1
+    double probability = rand0_1(); // Probabilidad aleatoria entre 0 y 1
 
     // Seguimos hasta llegar a una superficie difusa, simulando el camino del foton
     while (probability <= material.p_diffuse + material.p_specular + material.p_transparency) {
@@ -207,7 +216,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
             point = intersection->point;
             material = intersection->material;
             normal = intersection->normal;
-            probability = (double) rand0_1();
+            probability = rand0_1();
         }
     }
 
