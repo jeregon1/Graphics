@@ -62,3 +62,10 @@ void run_cornell_box_test() {
     cout << "Rendered to test_all_primitives.ppm" << endl;
 }
 
+int main() {
+    std::cout << "Running Cornell Box test...\n";
+    run_cornell_box_test();
+    std::cout << "Cornell Box test completed.\n";
+    return 0;
+}
+

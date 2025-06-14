@@ -89,7 +89,9 @@ void run_bmp_tests() {
     // Add more BMP specific tests if needed
 }
 
-// int main() { // Original main function commented out or removed
-// run_bmp_tests();
-// return 0;
-// }
+int main() {
+    std::cout << "Running BMP tests...\n";
+    run_bmp_tests();
+    std::cout << "BMP tests completed.\n";
+    return 0;
+}

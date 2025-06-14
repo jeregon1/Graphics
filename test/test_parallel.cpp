@@ -123,3 +123,10 @@ void run_parallel_tests(int argc, char* argv[]) {
     cout << "\nTest completed! Check " << parallelOutput << " and " << sequentialOutput << std::endl;
     cout << "Images should look identical (parallel should match sequential)\n";
 }
+
+int main(int argc, char* argv[]) {
+    std::cout << "Running parallel tests...\n";
+    run_parallel_tests(argc, argv);
+    std::cout << "Parallel tests completed.\n";
+    return 0;
+}

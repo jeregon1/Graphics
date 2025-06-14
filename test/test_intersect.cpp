@@ -48,11 +48,14 @@ void test_cylinder_intersection() {
     std::cout << "Cylinder intersection test passed!" << std::endl;
 }
 
-void run_intersect_tests() {
-    std::cout << "Running intersect tests...\n";
+
+int main() {
+    std::cout << "Running intersection tests...\n";
     test_sphere_intersection();
     test_plane_intersection();
     test_triangle_intersection();
     test_cone_intersection();
     test_cylinder_intersection();
+    std::cout << "Intersection tests completed.\n";
+    return 0;
 }

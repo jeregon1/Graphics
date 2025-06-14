@@ -8,10 +8,8 @@ CXXFLAGS = -g --debug -O0 -std=c++20 -Wall -Wextra -Iinclude
 LIB_SRCS = $(filter-out src/tonemap_cli.cpp, $(wildcard src/*.cpp))
 LIB_OBJS = $(LIB_SRCS:src/%.cpp=build/%.o)
 
-# Test source files (all test files needed for unified test system)
-TEST_SRC_FILES = test/test_main.cpp test/test_p2.cpp test/test_parallel.cpp test/test_cornell_box.cpp test/test_bmp.cpp test/test_geometry.cpp test/test_intersect.cpp
-TEST_OBJS = $(LIB_OBJS) $(TEST_SRC_FILES:test/%.cpp=build/test_%.o)
-TEST_EXEC = build/test
+# Individual test executables
+TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/test_cornell_box build/test_geometry build/test_intersect build/test_parallel build/test_yaml
 
 # CLI executable  
 CLI_SRCS = $(LIB_SRCS) src/tonemap_cli.cpp
@@ -19,7 +17,32 @@ CLI_OBJS = $(CLI_SRCS:src/%.cpp=build/%.o)
 CLI_EXEC = build/tonemap
 
 # Default target
-all: $(TEST_EXEC) $(CLI_EXEC)
+all: $(TEST_EXECUTABLES) $(CLI_EXEC)
+
+# Build individual test executables
+build/test_p2: test/test_p2.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_p3: test/test_p3.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_bmp: test/test_bmp.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_cornell_box: test/test_cornell_box.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_geometry: test/test_geometry.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_intersect: test/test_intersect.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_parallel: test/test_parallel.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_yaml: test/test_yaml_scene.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Build the unified test executable
 $(TEST_EXEC): $(TEST_OBJS)
@@ -33,36 +56,39 @@ $(CLI_EXEC): $(CLI_OBJS)
 build/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-# Build test object files with different naming
-build/test_%.o: test/%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
-
 # Clean up
 clean:
-	rm -f build/*.o $(TEST_EXEC) $(CLI_EXEC)
+	rm -f build/*.o $(TEST_EXECUTABLES) $(CLI_EXEC)
 
-# Run tests
-test: $(TEST_EXEC)
-	./$(TEST_EXEC) all
+# Run all tests
+test: $(TEST_EXECUTABLES)
+	@echo "Running all tests..."
+	@for test in $(TEST_EXECUTABLES); do echo "Running $$test..."; ./$$test; echo; done
 
-# Run specific test groups
-test-p2: $(TEST_EXEC)
-	./$(TEST_EXEC) p2
+# Run specific tests
+test-p2: build/test_p2
+	./build/test_p2
 
-test-parallel: $(TEST_EXEC)
-	./$(TEST_EXEC) parallel
+test-p3: build/test_p3
+	./build/test_p3
 
-test-cornell: $(TEST_EXEC)
-	./$(TEST_EXEC) cornell_box
+test-parallel: build/test_parallel
+	./build/test_parallel
 
-test-bmp: $(TEST_EXEC)
-	./$(TEST_EXEC) bmp
+test-cornell: build/test_cornell_box
+	./build/test_cornell_box
 
-test-geometry: $(TEST_EXEC)
-	./$(TEST_EXEC) geometry
+test-bmp: build/test_bmp
+	./build/test_bmp
 
-test-intersect: $(TEST_EXEC)
-	./$(TEST_EXEC) intersect
+test-geometry: build/test_geometry
+	./build/test_geometry
+
+test-intersect: build/test_intersect
+	./build/test_intersect
+
+test-yaml: build/test_yaml
+	./build/test_yaml
 
 # Quick test of CLI
 test-cli: $(CLI_EXEC)
@@ -78,4 +104,4 @@ test-cli: $(CLI_EXEC)
 		echo "Sample file assets/mpi_office.ppm not found"; \
 	fi
 
-.PHONY: all clean test test-p2 test-parallel test-cornell test-bmp test-geometry test-intersect test-cli
+.PHONY: all clean test test-p2 test-p3 test-parallel test-cornell test-bmp test-geometry test-intersect test-yaml test-cli

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <string>
 #include <iomanip>
@@ -6,7 +7,7 @@
 #include "../include/toneMapping.hpp"
 
 #define ppmTestFile     "assets/mpi_office.ppm"
-#define ppmTestFileCopy "assets/mpi_officeCopy.ppm"
+#define ppmTestFileCopy "test_outputs/mpi_officeCopy.ppm"
 const std::string OUTPUT_DIR = "test_outputs/";
 
 void test_readWritePPM(const std::string& file) {
@@ -17,7 +18,7 @@ void test_readWritePPM(const std::string& file) {
     }
     Image img = std::move(*optImg);
     
-    img.writePPM(OUTPUT_DIR + ppmTestFileCopy);
+    img.writePPM(ppmTestFileCopy);
 
     // Check if the file was created
     std::ifstream fileStream(ppmTestFileCopy);
@@ -153,8 +154,12 @@ void test_readWriteBMP(const std::string& file) {
     }
 }
 
-void run_p2_tests(const std::string& file = ppmTestFile) {
-    test_readWritePPM(file);
-    test_toneMapping(file);
-    test_readWriteBMP(file);
+
+int main() {
+    std::cout << "Running P2 tests...\n";
+    test_readWritePPM(ppmTestFile);
+    test_toneMapping(ppmTestFile);
+    test_readWriteBMP(ppmTestFile);
+    std::cout << "P2 tests completed.\n";
+    return 0;
 }

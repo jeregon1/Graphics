@@ -60,3 +60,10 @@ void run_geometry_tests() {
     test_rotate_z();
     test_scale();
 }
+
+int main() {
+    std::cout << "Running geometry tests...\n";
+    run_geometry_tests();
+    std::cout << "Geometry tests completed.\n";
+    return 0;
+}
