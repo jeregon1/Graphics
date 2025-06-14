@@ -136,10 +136,10 @@ private:
     }     
     
 public:
-    KDTree(std::vector<T>&& elements, const A& axis_position = A()) : elements(std::move(elements)), axis_position(axis_position) { build_tree(); }
+    KDTree(std::vector<T>&& elements, const A& axis_position = A()) : axis_position(axis_position), elements(std::move(elements)) { build_tree(); }
     KDTree() {}
     template<typename C> //Constructing from a general collection if possible
-    KDTree(const C& c, const A& axis_position = A(), typename std::enable_if<std::is_same<T,typename C::value_type>::value>::type* sfinae = nullptr) : axis_position(axis_position), elements(c.begin(),c.end()) { build_tree(); }
+    KDTree(const C& c, const A& axis_position = A(), typename std::enable_if<std::is_same<T,typename C::value_type>::value>::type* sfinae = nullptr) : axis_position(axis_position), elements(c.begin(),c.end()) { (void) sfinae; build_tree(); }
     
     template<typename Norm>
     std::vector<const T*> nearest_neighbors(const std::array<real,N>& p, std::size_t number, float max_distance, const Norm& norm) const {
