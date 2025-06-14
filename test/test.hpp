@@ -2,8 +2,6 @@
 
 #include <string>
 
-using namespace std;
-
 // Functions from test_geometry.cpp
 void test_translate();
 void test_rotate_x();

@@ -11,36 +11,44 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <sstream>
 #include <vector>
+#include <optional>
 #include <cmath>
 #include <algorithm>
 
 #include "RGB.hpp"
 
-using namespace std;
+class Image {
+public:
+   int width{0}, height{0};
+   std::vector<RGB> pixels;
 
-
-struct Image {
-
-   int width, height;
-   vector<RGB> pixels;
-
-   Image() {}
-
-   Image(int width, int height) 
+   Image() = default;
+   constexpr Image(int width, int height) noexcept 
          : width(width), height(height) {}
 
-   Image(int width, int height, vector<RGB> pixels) 
-         : width(width), height(height), pixels(pixels) {}
+   Image(int width, int height, std::vector<RGB> pixels) noexcept
+         : width(width), height(height), pixels(std::move(pixels)) {}
 
-   Image(const string& path);
+   explicit Image(const std::string& path); // explicit prevents implicit conversions
 
-   float max() const;
+   // Move constructor and assignment for better performance
+   Image(Image&&) noexcept = default;
+   Image& operator=(Image&&) noexcept = default;
+   
+   // Copy operations
+   Image(const Image&) = default;
+   Image& operator=(const Image&) = default;
 
-   static Image readPPM(const string& path);
-   void writePPM(const string& path) const;
+   [[nodiscard]] float max() const noexcept;
 
-   static Image readBMP(const string& path);
-   void writeBMP(const string& path) const;
+   [[nodiscard]] static std::optional<Image> readPPM(const std::string& path);
+   bool writePPM(const std::string& path) const noexcept;
+
+   [[nodiscard]] static std::optional<Image> readBMP(const std::string& path);
+   bool writeBMP(const std::string& path) const noexcept;
+   
+   // Utility functions
+   [[nodiscard]] bool empty() const noexcept { return pixels.empty(); }
+   [[nodiscard]] size_t size() const noexcept { return pixels.size(); }
 };

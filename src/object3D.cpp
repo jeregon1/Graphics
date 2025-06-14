@@ -80,25 +80,25 @@ MapaFotones Scene::generarMapaFotones(int nPaths, bool save, double sigma) {
 
 // TODO: Revisar que funcione el código
 // Estas dos imágenes generan una lista de fotones en la escena
-void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones, 
-            list<Foton>& causticos, bool esCaustico, bool save, double sigma) {
+void Scene::reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& fotones, 
+            std::list<Foton>& causticos, bool esCaustico, bool save, double sigma) {
     
-    // Inicializacion de variables
+    // Variable initialization
     auto intersection = this->intersect(ray);
     bool primerRebote = true;
 
-    if (!intersection) { // Si no hay intersección, no hacemos nada
+    if (!intersection) { // If no intersection, do nothing
         return;
     }
 
-    // RGB radiancia = light; // Esto solo sirve para las fuentes de luz de Area
     Direction wo = ray.direction;
     Direction wi;
 
     double norma = (ray.origin - intersection->point).mod();
     norma = norma * norma;
     RGB brdf = light/norma;
-    do { // Si interseca la escena
+    
+    do { // If it intersects the scene
         // Si interseca con una luz de área, guardamos el fotón
         /*
         if (i.geometria->esLuzArea()) {
@@ -134,15 +134,16 @@ void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones,
             brdf = brdf * abs(wi * normal) * material.diffuse/material.p_diffuse; // BRDF difuso 
         } 
         
-        // Especular
+        // Specular
         else if (probability <= material.p_diffuse + material.p_specular) { 
             esCaustico = true;
             Direction normal = intersection->normal;
             if (ray.direction * normal > 0.0) {
-                normal = Direction(-normal.x, -normal.y, -normal.z); // Dirección del rayo * normal de la intersección
+                normal = Direction(-normal.x, -normal.y, -normal.z); // Direction of ray * intersection normal
             } 
-            wi = (wi - 2 * (wi * intersection->normal)) * intersection->normal;
-            brdf = brdf * abs(wi * normal) * material.specular/material.p_specular; // BRDF especular
+            // Perfect reflection: R = I - 2(I·N)N
+            wi = wo - normal * (2.0f * (wo * normal));
+            brdf = brdf * abs(wi * normal) * material.specular/material.p_specular; // Specular BRDF
         } 
         
         // Refracción
@@ -165,95 +166,22 @@ void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones,
         brdf = brdf * pow(M_E, -sigma*norma);
         primerRebote = false;
 
-    } while (intersection = this->intersect(Ray(intersection->point, wi)));
+    } while ((intersection = this->intersect(Ray(intersection->point, wi))));
 }
 
-// Hay que mirarse esta función que es la importante que genera la imágen
-RGB Escena::ecuacionRenderFotones(Punto x, Direccion wo, Geometria* geo, Direccion n, 
-            MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma) {
-    
-    // Caso base
-    if (geo->esLuzArea()) return geo->k_e;
+/*
+// TODO: Complete photon mapping implementation - this function needs to be rewritten in English
+// RGB Scene::ecuacionRenderFotones(Point x, Direction wo, Object3D* geo, Direction n, 
+//             MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma) {
+//     // Implementation needs to be completed
+//     return RGB(0, 0, 0);
+// }
 
-    Direccion normal = n;
-    double radioFotonMasLejano = 0.0;
-    double radioFoton = 0.0;
-    Punto posFoton;
-    RGB L= RGB({0.0,0.0,0.0});
-    EVENTO evento = geo->evento_aleatorio();
-    Punto p = x;
-    Geometria* g = geo;
-
-    // Seguimos hasta llegar a una superficie difusa, simulando el camino del foton
-    while (evento == EVENTO_ESPECULAR || evento == EVENTO_REFRACCION) {
-        // Lo mismo que más arriba
-        if (evento == EVENTO_ESPECULAR) {
-            if (wo*normal > 0.0) normal = -normal;
-            wo = g->reflejar(wo, normal);
-        } else if (evento == EVENTO_REFRACCION) {
-            wo = g->refractar(wo, normal);
-        }
-
-        // Se maneja siguiente intersección
-        Interseccion i = this->interseccion(Rayo(p,wo));
-        if (i.numIntersecciones == 0 ) {
-            evento = EVENTO_ABSORCION;
-        } else {
-            p = i.punto;
-            g = i.geometria;
-            normal = i.normal;
-            evento = g->evento_aleatorio();
-        }
-    }
-    if (evento == EVENTO_DIFUSO) {
-        if (wo*normal > 0.0) normal = -normal;
-        // Obtener fotones cercanos con radio r y máximo k
-        vector<const Foton*> fotones = mapa.nearest_neighbors(p, kFotones, radio);
-        
-        // Se obtiene el foton más lejano
-        for (const Foton* f : fotones) {
-            posFoton = f->posicion;
-            radioFoton = (posFoton - p).modulo();
-            if (radioFoton > radioFotonMasLejano) radioFotonMasLejano = radioFoton;
-        }
-        for (const Foton* f : fotones) {
-            Direccion wi = f->direccion;
-            double coseno = -normal*wi;
-            if (coseno > 0.0) {
-                posFoton = f->posicion;
-                L = L + g->fr_difuso(p, wi, wo, normal)*f->flujo
-                    *kernel->evaluar((posFoton - p).modulo(), radioFotonMasLejano);
-            }
-        }
-        // Estimacion de la luz directa
-        if (!guardar) L = L + estimacionSiguienteEvento(p, wo, g, normal, sigma);
-    } else if (evento == EVENTO_EMISION) {
-        L = L + g->k_e;
-    }
-    return L;
-}
-
-// Devuelve la luz directa en un punto de la escena sobre una geometria difusa
-RGB Escena::estimacionSiguienteEvento(Punto x, Direccion wo, Geometria* g, Direccion n, double sigma) {
-    RGB L = RGB({0.0,0.0,0.0});
-    // Recorremos todas las luces puntuales
-    // y calculamos la luz directa que llega al punto x
-    // con la BRDF de Lambert
-    for (int i = 0; i < luces.size(); i++) {
-        Direccion wi = (luces[i]->p - x).normalizado();
-        double norma = (luces[i]->p - x)*(luces[i]->p - x);
-        double coseno = n*wi;
-        RGB fr = g->fr_solo_difuso(x, wo, wi, n); // BRDF Lambertiano
-        if (coseno > 0) {
-            Interseccion interseccion = this->interseccion(Rayo(luces[i]->p,-wi));
-            if (interseccion.numIntersecciones > 0 && interseccion.distancia >= sqrt(norma) - 0.0001) {
-                if (sigma == 0.0) L = L + (coseno*fr)*(luces[i]->c/norma);
-                else L = L + (coseno*fr)*(luces[i]->c/norma)*pow(M_E, -sigma*norma);
-            }
-        }
-    }
-    return L;
-}
+// RGB Scene::estimacionSiguienteEvento(Point x, Direction wo, Object3D* g, Direction n, double sigma) {
+//     // Implementation needs to be completed  
+//     return RGB(0, 0, 0);
+// }
+*/
 
 string Scene::toString() const {
     string result;
@@ -377,28 +305,28 @@ string Plane::toString() const {
  * Triangle *
  ************/
 
- /*
-// TODO: check
+// Möller-Trumbore intersection algorithm
 optional<Intersection> Triangle::intersect(const Ray& r) const {
-    // Source: https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+    const float EPS = 1e-8f;
+    
     Direction edge1 = b - a;
     Direction edge2 = c - a;
     Direction h = r.direction.cross(edge2);
-    float a_ = edge1.dot(h);
+    float a_det = edge1.dot(h);
 
     // Check if the ray is parallel to the triangle
-    if (abs(a_) < EPSILON)
+    if (abs(a_det) < EPS)
         return nullopt;
 
-    float f = 1.0f / a_; // Inverse of the determinant
+    float f = 1.0f / a_det;
     Direction s = r.origin - a;
     float u = f * s.dot(h);
 
     // Check if the intersection point is outside the triangle
-    if (u < 0.0f || 1.0f < u)
+    if (u < 0.0f || u > 1.0f)
         return nullopt;
 
-    Direction q = s.cross(edge1); 
+    Direction q = s.cross(edge1);
     float v = f * r.direction.dot(q);
 
     // Check if the intersection point is outside the triangle
@@ -408,12 +336,13 @@ optional<Intersection> Triangle::intersect(const Ray& r) const {
     float t = f * edge2.dot(q);
 
     // Check if the intersection point is in front of the ray origin
-    if (t > EPSILON)
-        return Intersection(t, r.at(t), normal);
-    else
+    if (t > EPS) {
+        Point intersectionPoint = r.at(t);
+        return Intersection(t, intersectionPoint, normal, material);
+    } else {
         return nullopt;
+    }
 }
-*/
 
 string Triangle::toString() const {
     ostringstream oss;
@@ -427,39 +356,54 @@ string Triangle::toString() const {
  * Cone *
  ********/
 
- /*
-// Source: https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-cone-intersection
 optional<Intersection> Cone::intersect(const Ray& ray) const {
+    const float EPS = 1e-8f;
+    
+    // Transform ray to cone's local coordinate system
+    // Assume cone axis is along positive Y, with tip at (0, height, 0)
     Direction co = ray.origin - base;
-    float cos2 = (radius / height) * (radius / height);
-    float a = ray.direction.x * ray.direction.x + ray.direction.y * ray.direction.y - cos2 * ray.direction.z * ray.direction.z;
-    float b = 2 * (ray.direction.x * co.x + ray.direction.y * co.y - cos2 * ray.direction.z * co.z);
-    float c = co.x * co.x + co.y * co.y - cos2 * co.z * co.z;
+    
+    // Cone equation: x² + z² = (radius * (height - y) / height)²
+    // Rearranging: x² + z² - (radius² * (height - y)² / height²) = 0
+    
+    float k = radius / height;
+    k = k * k;
+    
+    float a = ray.direction.x * ray.direction.x + ray.direction.z * ray.direction.z - k * ray.direction.y * ray.direction.y;
+    float b = 2.0f * (co.x * ray.direction.x + co.z * ray.direction.z - k * (height - co.y) * (-ray.direction.y));
+    float c = co.x * co.x + co.z * co.z - k * (height - co.y) * (height - co.y);
 
-    float discriminant = b * b - 4 * a * c;
+    float discriminant = b * b - 4.0f * a * c;
 
     if (discriminant < 0) {
         return nullopt;
-    } else {
-        float t1 = (-b - sqrt(discriminant)) / (2 * a);
-        float t2 = (-b + sqrt(discriminant)) / (2 * a);
-
-        float t = (t1 < t2) ? t1 : t2;
-
-        if (t < 0) {
-            t = (t1 > t2) ? t1 : t2;
-            if (t < 0) {
-                return nullopt;
-            }
-        }
-
-        Point intersectionPoint = ray.at(t);
-        Direction normal = (intersectionPoint - base).normalize();
-
-        return Intersection(t, intersectionPoint, normal);
     }
+
+    float sqrt_discriminant = sqrt(discriminant);
+    float t1 = (-b - sqrt_discriminant) / (2.0f * a);
+    float t2 = (-b + sqrt_discriminant) / (2.0f * a);
+
+    // Choose the closest positive intersection
+    float t = (t1 > EPS) ? t1 : t2;
+    if (t <= EPS) {
+        return nullopt;
+    }
+
+    Point intersectionPoint = ray.at(t);
+    Direction localPoint = intersectionPoint - base;
+    
+    // Check if intersection is within cone bounds (0 <= y <= height)
+    if (localPoint.y < 0 || localPoint.y > height) {
+        return nullopt;
+    }
+
+    // Calculate normal at intersection point
+    // For a cone, normal at (x, y, z) is (x, -radius²/height, z) normalized
+    float normalY = -radius * radius / height;
+    Direction normal = Direction(localPoint.x, normalY, localPoint.z).normalize();
+    
+    return Intersection(t, intersectionPoint, normal, material);
 }
-*/
 
 string Cone::toString() const {
     stringstream ss;

@@ -69,7 +69,8 @@
         "xmemory": "cpp",
         "xtr1common": "cpp",
         "xutility": "cpp",
-        "cool functions": "cpp"
+        "cool functions": "cpp",
+        "list": "cpp"
     },
     "C_Cpp.default.compilerPath": "C:\\MinGW\\bin\\g++.exe",
     "makefile.configureOnOpen": false,

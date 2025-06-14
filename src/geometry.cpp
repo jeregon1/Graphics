@@ -51,12 +51,10 @@ ostream& operator<<(ostream& os, const Coordinate& c) {
  * Point *
  *********/
 
-Point::Point(float x, float y, float z, const Coordinate& base) : Coordinate{x, y, z}, base(base) {}
+Point::Point(float x, float y, float z) : Coordinate{x, y, z} {}
 
 float Point::dot(const Point& other) const {
-    return (x - base.x) * (other.x - other.base.x) + 
-            (y - base.y) * (other.y - other.base.y) + 
-            (z - base.z) * (other.z - other.base.z);
+    return x * other.x + y * other.y + z * other.z;
 }
 
 Direction Point::operator-(const Point& p2) const {
@@ -69,7 +67,7 @@ Point Point::operator+(const Direction& other) const {
 
 string Point::toString() const {
     ostringstream oss;
-    oss << base.x << " + " << Coordinate::toString();
+    oss << "Point" << Coordinate::toString();
     return oss.str();
 }
 
@@ -104,7 +102,7 @@ Direction Direction::operator/(float scalar) const {
 }
 
 Point Direction::operator+(const Point& point) const {
-    return Point(x + point.x, y + point.y, z + point.z, point.base);
+    return Point(x + point.x, y + point.y, z + point.z);
 }
 
 bool Direction::operator==(const Direction& other) const {
@@ -116,7 +114,13 @@ float Direction::mod() const {
 }
 
 Direction Direction::normalize() const {
-    return *this / mod();
+    float magnitude = mod();
+    if (magnitude < 1e-9f) {
+        // Cannot normalize a zero vector - throw exception or return zero vector
+        throw invalid_argument("Cannot normalize a zero vector");
+        // Alternative: return Direction(0, 0, 0); // Return zero vector
+    }
+    return Direction(x / magnitude, y / magnitude, z / magnitude);
 }
 
 float Direction::dot(const Direction& other) const {

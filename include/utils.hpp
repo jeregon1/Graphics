@@ -1,7 +1,13 @@
 #pragma once
 
 #include <random>
+#include <cmath>
+#include <cstdlib>
 #include "geometry.hpp"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 //https:projecteuclid.org/journals/annals-of-mathematical-statistics/volume-43/issue-2/Choosing-a-Point-from-the-Surface-of-a-Sphere/10.1214/aoms/1177692644.full
 
@@ -9,7 +15,7 @@
  *  Este código implementa una función para muestrear direcciones aleatorias uniformemente distribuidas sobre la superficie de una esfera
  */
 
-Direction muestraAleatoriaUniforme() {
+inline Direction muestraAleatoriaUniforme() {
     // Genera dos números aleatorios uniformes en [0, 1)
     double u = static_cast<double>(rand()) / RAND_MAX;
     double v = static_cast<double>(rand()) / RAND_MAX;

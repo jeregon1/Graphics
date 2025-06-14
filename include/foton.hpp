@@ -32,7 +32,7 @@ struct PosicionEjeFoton {
 
 using MapaFotones = nn::KDTree<Foton,3,PosicionEjeFoton>;
 
-MapaFotones construirMapaFotones(std::list<Foton> fotones) {
+inline MapaFotones construirMapaFotones(std::list<Foton> fotones) {
     return MapaFotones(fotones, PosicionEjeFoton());
 }
 

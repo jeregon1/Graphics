@@ -15,11 +15,12 @@
 #include <algorithm>
 #include <vector>
 #include <cmath>
+#include <functional>
 
-using namespace std;
+namespace ToneMapping {
 
 // Each RGB value is clamped to the range [0, max]
-void clamp(Image& image, float max) {
+void clamp(Image& image, float max) noexcept {
    for (auto& pixel : image.pixels) {
       pixel.r = std::clamp(pixel.r, 0.0f, max);
       pixel.g = std::clamp(pixel.g, 0.0f, max);
@@ -27,12 +28,20 @@ void clamp(Image& image, float max) {
    }
 }
 
+// Functional approach that returns new image
+Image apply(const Image& img, std::function<RGB(const RGB&)> transform) noexcept {
+    Image result = img; // Copy
+    std::transform(img.pixels.begin(), img.pixels.end(), 
+                   result.pixels.begin(), transform);
+    return result;
+}
+
 // Normalization of all the values in a linear way
-void equalization(Image& image, float V) {
+void equalization(Image& image, float V) noexcept {
    if (V == 0) {
-      V = max_element(image.pixels.begin(), image.pixels.end(), [](const RGB& a, const RGB& b) {
+      V = std::max_element(image.pixels.begin(), image.pixels.end(), [](const RGB& a, const RGB& b) {
          return a.max() < b.max();
-      })->r;
+      })->max();
    }
 
    for (auto& pixel : image.pixels) {
@@ -40,31 +49,30 @@ void equalization(Image& image, float V) {
    }
 }
 
-void equalizationClamp(Image& image, float V) {
+void equalizationClamp(Image& image, float V) noexcept {
    equalization(image, V);
    clamp(image, V);
 }
 
-void gamma(Image& image, float gammaValue) {
-   equalization(image, gammaValue);
+void gamma(Image& image, float gammaValue) noexcept {
+   equalization(image, 0);
    for (auto& pixel : image.pixels) {
       pixel = pixel.pow(1 / gammaValue);
    }
 }
 
-void clampGamma(Image& image, float max, float gammaValue) {
+void clampGamma(Image& image, float max, float gammaValue) noexcept {
    equalizationClamp(image, max);
    gamma(image, gammaValue);
 }
 
-// Reference: Reinhard, E., Stark, M., Shirley, P., & Ferwerda, J. (2002). Photographic tone reproduction for digital images. ACM Transactions on Graphics, 21(3), 267-276.
-void reinhard(Image& img, float key, float Lwhite) {
-   vector<RGB> output(img.pixels.size());
+void reinhard(Image& img, float key, float Lwhite) noexcept {
+   std::vector<RGB> output(img.pixels.size());
     
    // Step 1: Calculate the log average luminance
    float sumLuminance = 0.0f;
    float maxLuminance = 0.0f;
-   vector<float> luminances(img.pixels.size());
+   std::vector<float> luminances(img.pixels.size());
    
    for (size_t i = 0; i < img.pixels.size(); ++i) {
       // Convert RGB to luminance using the perceptual weights
@@ -72,12 +80,12 @@ void reinhard(Image& img, float key, float Lwhite) {
                         0.7152f * img.pixels[i].g + 
                         0.0722f * img.pixels[i].b;
       
-      luminances[i] = max(luminance, 0.0001f); // Avoid taking log of zero
-      maxLuminance = max(maxLuminance, luminance);
-      sumLuminance += log(luminance);
+      luminances[i] = std::max(luminance, 0.0001f); // Avoid taking log of zero
+      maxLuminance = std::max(maxLuminance, luminance);
+      sumLuminance += std::log(luminance);
    }
    
-   float logAvgLuminance = exp(sumLuminance / img.pixels.size());
+   float logAvgLuminance = std::exp(sumLuminance / img.pixels.size());
    
    // Step 2: Scale the luminance by the key value
    float scaledLuminance = key / logAvgLuminance;
@@ -106,6 +114,8 @@ void reinhard(Image& img, float key, float Lwhite) {
       output[i] = img.pixels[i] * scale;
    }
    
-   img.pixels = output;
+   img.pixels = std::move(output);
 }
+
+} // namespace ToneMapping
 

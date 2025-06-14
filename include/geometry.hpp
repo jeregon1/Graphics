@@ -27,9 +27,7 @@ class Direction;
 
 class Point : public Coordinate {
 public:
-    Coordinate base;
-
-    Point(float x = 0, float y = 0, float z = 0, const Coordinate& base = Coordinate());
+    Point(float x = 0, float y = 0, float z = 0);
 
     float dot(const Point& other) const;
 

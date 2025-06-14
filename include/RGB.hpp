@@ -9,35 +9,32 @@
 #pragma once
 
 #include <iostream>
-
-using namespace std;
+#include <algorithm>
+#include <cmath>
 
 struct RGB {
     float r, g, b;
 
-    static constexpr float tolerance = 1e-6;
+    static constexpr float tolerance = 1e-6f;
 
-    RGB() : r(0), g(0), b(0) {}
-    RGB(float r, float g, float b) : r(r), g(g), b(b) {}
-    RGB(const RGB &rgb) : r(rgb.r), g(rgb.g), b(rgb.b) {}
+    constexpr RGB() noexcept : r(0), g(0), b(0) {}
+    constexpr RGB(float r, float g, float b) noexcept : r(r), g(g), b(b) {}
+    constexpr RGB(const RGB&) noexcept = default;
+    constexpr RGB& operator=(const RGB&) noexcept = default;
 
-    RGB operator+(const RGB &rgb) const {
+    constexpr RGB operator+(const RGB &rgb) const noexcept {
         return RGB(r + rgb.r, g + rgb.g, b + rgb.b);
     }
 
-    RGB operator-(const RGB &rgb) const {
+    constexpr RGB operator-(const RGB &rgb) const noexcept {
         return RGB(r - rgb.r, g - rgb.g, b - rgb.b);
     }
 
-    RGB operator*(const RGB &rgb) const {
+    constexpr RGB operator*(const RGB &rgb) const noexcept {
         return RGB(r * rgb.r, g * rgb.g, b * rgb.b);
     }
 
-    RGB operator*(const double value) const {
-        return RGB(r * value, g * value, b * value);
-    }
-
-    RGB operator/(const RGB &rgb) const {
+    constexpr RGB operator/(const RGB &rgb) const noexcept {
         return RGB(r / rgb.r, g / rgb.g, b / rgb.b);
     }
 
@@ -68,6 +65,14 @@ struct RGB {
 
     float min() const {
         return std::min(r, std::min(g, b));
+    }
+
+    RGB clamp(float minVal = 0.f, float maxVal = 1.f) const {
+        return RGB(
+            std::clamp(r, minVal, maxVal),
+            std::clamp(g, minVal, maxVal),
+            std::clamp(b, minVal, maxVal)
+        );
     }
 
     RGB& operator+=(const RGB &rgb) {
@@ -110,15 +115,6 @@ struct RGB {
 
     bool operator!=(const RGB &rgb) const {
         return !(*this == rgb);
-    }
-
-    RGB& operator=(const RGB &rgb) {
-        if (this != &rgb) {
-            r = rgb.r;
-            g = rgb.g;
-            b = rgb.b;
-        }
-        return *this;
     }
 
     friend std::ostream &operator<<(std::ostream &os, const RGB &rgb) {

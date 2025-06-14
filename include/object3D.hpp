@@ -4,6 +4,10 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <list>
+#include <cstdlib>
+#include <ctime>
+#include <cmath>
 
 #include "geometry.hpp"
 #include "Image.hpp"
@@ -13,6 +17,14 @@
 #include "utils.hpp"
 
 #define EPSILON 1e-6
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#ifndef M_E
+#define M_E 2.71828182845904523536
+#endif
 
 static bool const dummy = (srand(time(NULL)), true);
 
@@ -31,7 +43,7 @@ struct Material {
     bool isEmissive = false; // Si es una fuente de luz
 
     Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), bool isEmissive = false) :
-        diffuse(diffuse), specular(specular), isEmissive(isEmissive) 
+        diffuse(diffuse), specular(specular), transparency(RGB(0, 0, 0)), isEmissive(isEmissive) 
         {
             p_diffuse = diffuse.max();
             p_specular = specular.max();
@@ -158,7 +170,8 @@ private:
     RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
     RGB calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
     RGB calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
-    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
+    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel, 
+                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const;
 
 };
 

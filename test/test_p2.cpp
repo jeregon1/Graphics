@@ -6,68 +6,101 @@
 #include "../include/Image.hpp"
 #include "../include/toneMapping.hpp"
 
-using namespace std;
-
 #define ppmTestFile     "/mnt/c/Users/jesus/OneDrive/Documentos/4ºCarrera/Gráfica/Prácticas/assets/mpi_office.ppm"
 #define ppmTestFileCopy "/mnt/c/Users/jesus/OneDrive/Documentos/4ºCarrera/Gráfica/Prácticas/assets/mpi_officeCopy.ppm"
 
-void test_readWritePPM(const string& file) {
-    Image img = Image::readPPM(file);
+void test_readWritePPM(const std::string& file) {
+    auto optImg = Image::readPPM(file);
+    if (!optImg) {
+        std::cerr << "Error: Could not load PPM file " << file << std::endl;
+        return;
+    }
+    Image img = std::move(*optImg);
     
     img.writePPM(ppmTestFileCopy);
 
     // Check if the file was created
-    ifstream fileStream(ppmTestFileCopy);
+    std::ifstream fileStream(ppmTestFileCopy);
     assert(fileStream.good());
     fileStream.close();
     
     // Check if the file has the same content
-    Image imgCopy = Image::readPPM(ppmTestFileCopy);
+    auto optImgCopy = Image::readPPM(ppmTestFileCopy);
+    if (!optImgCopy) {
+        std::cerr << "Error: Could not load copy of PPM file" << std::endl;
+        return;
+    }
+    Image imgCopy = std::move(*optImgCopy);
     assert(img.width == imgCopy.width);
     assert(img.height == imgCopy.height);
     for (size_t i = 0; i < img.pixels.size(); i++) {
         if (img.pixels[i] != imgCopy.pixels[i]) {
-            cout << setprecision(40);
-            cout << "Pixel " << i << " is different" << endl;
-            cout << "Original: " << img.pixels[i] << endl;
-            cout << "Copy:     " << imgCopy.pixels[i] << endl;
+            std::cout << std::setprecision(40);
+            std::cout << "Pixel " << i << " is different" << std::endl;
+            std::cout << "Original: " << img.pixels[i] << std::endl;
+            std::cout << "Copy:     " << imgCopy.pixels[i] << std::endl;
 
             break;
         }
     }
 }
 
-void testClamp(const string& path) {
-    Image image = Image::readPPM(path);
-    clamp(image);
+void testClamp(const std::string& path) {
+    auto optImage = Image::readPPM(path);
+    if (!optImage) {
+        std::cerr << "Error: Could not load PPM file " << path << std::endl;
+        return;
+    }
+    Image image = std::move(*optImage);
+    ToneMapping::clamp(image);
     image.writePPM("clamp.ppm");
 }
 
-void testEqualization(const string& path) {
-    Image image = Image::readPPM(path);
-    equalization(image);
+void testEqualization(const std::string& path) {
+    auto optImage = Image::readPPM(path);
+    if (!optImage) {
+        std::cerr << "Error: Could not load PPM file " << path << std::endl;
+        return;
+    }
+    Image image = std::move(*optImage);
+    ToneMapping::equalization(image);
     image.writePPM("equalized.ppm");
 }
 
-void testEqualizationClamp(const string& path) {
-    Image image = Image::readPPM(path);
-    equalizationClamp(image);
+void testEqualizationClamp(const std::string& path) {
+    auto optImage = Image::readPPM(path);
+    if (!optImage) {
+        std::cerr << "Error: Could not load PPM file " << path << std::endl;
+        return;
+    }
+    Image image = std::move(*optImage);
+    ToneMapping::equalizationClamp(image);
     image.writePPM("equalizedClamp.ppm");
 }
 
-void testGamma(const string& path) {
-    Image image = Image::readPPM(path);
-    gamma(image);
+void testGamma(const std::string& path) {
+    auto optImage = Image::readPPM(path);
+    if (!optImage) {
+        std::cerr << "Error: Could not load PPM file " << path << std::endl;
+        return;
+    }
+    Image image = std::move(*optImage);
+    ToneMapping::gamma(image);
     image.writePPM("gamma.ppm");
 }
 
-void testClampGamma(const string& path) {
-    Image image = Image::readPPM(path);
-    clampGamma(image);
+void testClampGamma(const std::string& path) {
+    auto optImage = Image::readPPM(path);
+    if (!optImage) {
+        std::cerr << "Error: Could not load PPM file " << path << std::endl;
+        return;
+    }
+    Image image = std::move(*optImage);
+    ToneMapping::clampGamma(image);
     image.writePPM("clampGamma.ppm");
 }
 
-void test_toneMapping(const string& path) {
+void test_toneMapping(const std::string& path) {
     testClamp(path);
     testEqualization(path);
     testEqualizationClamp(path);
@@ -75,38 +108,48 @@ void test_toneMapping(const string& path) {
     testClampGamma(path);
 }
 
-void test_readWriteBMP(const string& file) {
+void test_readWriteBMP(const std::string& file) {
 
-    Image img1 = Image::readPPM(file);
+    auto optImg1 = Image::readPPM(file);
+    if (!optImg1) {
+        std::cerr << "Error: Could not load PPM file " << file << std::endl;
+        return;
+    }
+    Image img1 = std::move(*optImg1);
     
     img1.writeBMP("test.bmp");
 
     // Check if the file was created
-    ifstream fileStream("test.bmp");
+    std::ifstream fileStream("test.bmp");
     assert(fileStream.good());
     fileStream.close();
 
-    Image img2 = Image::readBMP("test.bmp");
+    auto optImg2 = Image::readBMP("test.bmp");
+    if (!optImg2) {
+        std::cerr << "Error: Could not load BMP file test.bmp" << std::endl;
+        return;
+    }
+    Image img2 = std::move(*optImg2);
     
     // Check if the file has the same content
     assert(img1.width == img2.width);
     assert(img1.height == img2.height);
     
-    cout << setprecision(10);
+    std::cout << std::setprecision(10);
     for (size_t i = 0; i < img1.pixels.size(); i++) {
         if (img1.pixels[i] != img2.pixels[i]) {
-            cout << "Pixel " << i << " is different" << endl;
-            cout << "Original: " << img1.pixels[i] << endl;
-            cout << "Copy:     " << img2.pixels[i] << endl;
+            std::cout << "Pixel " << i << " is different" << std::endl;
+            std::cout << "Original: " << img1.pixels[i] << std::endl;
+            std::cout << "Copy:     " << img2.pixels[i] << std::endl;
 
             break;
         } else {
-            cout << "Pixel " << i << " is the same" << endl;
-            cout << "Original: " << img1.pixels[i] << endl;
-            cout << "Copy:     " << img2.pixels[i] << endl;
+            std::cout << "Pixel " << i << " is the same" << std::endl;
+            std::cout << "Original: " << img1.pixels[i] << std::endl;
+            std::cout << "Copy:     " << img2.pixels[i] << std::endl;
             break;
         }
-        cout << endl;
+        std::cout << std::endl;
     }
 }
 
