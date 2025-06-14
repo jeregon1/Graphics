@@ -5,6 +5,7 @@
 #include "RGB.hpp"
 #include "kdtree.h"
 
+// TODO: Refactorizar los nombres de esta clase
 class Foton {
     public:
     Point posicion;

@@ -1,59 +1,60 @@
 #pragma once
 
-#include <cmath>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 class Kernel {
     public:
     Kernel() {};
+    // Cada kernel debe implementar su funcion de evaluacion
+    virtual double evaluar(double radioFoton, double radioMax) = 0;
+};
 
-    double evaluateBox(double photonRadius, double maxRadius) {
-        return 1.0 / (M_PI * maxRadius * maxRadius);
-    }
+class KernelCaja : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluateTriangular(double photonRadius, double maxRadius) {
-        return (1 - photonRadius / maxRadius) / (M_PI * maxRadius * maxRadius);
-    }
+class KernelTriangular : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluateGaussian(double photonRadius, double maxRadius, double sigma) {
-        return exp(-photonRadius * photonRadius / (2 * sigma * sigma)) /
-            (sqrt(2 * M_PI) * sigma * M_PI * maxRadius * maxRadius);
-    }
+class KernelGaussiano : public Kernel {
+    double sigma;
+    public:
+    KernelGaussiano(double s = 1) : sigma(s) {};
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluateEpanechnikov(double photonRadius, double maxRadius) {
-        return 3.0 / (4.0 * M_PI * maxRadius * maxRadius) *
-            (1 - photonRadius * photonRadius / (maxRadius * maxRadius));
-    }
+class KernelEpanechnikov : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluateQuartic(double photonRadius, double maxRadius) {
-        return 15.0 / (16.0 * M_PI * maxRadius * maxRadius) *
-            pow(1 - photonRadius * photonRadius / (maxRadius * maxRadius), 2);
-    }
+class KernelQuartic : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluateTriweight(double photonRadius, double maxRadius) {
-        return 35.0 / (32.0 * M_PI * maxRadius * maxRadius) *
-            pow(1 - photonRadius * photonRadius / (maxRadius * maxRadius), 3);
-    }
+class KernelTripeso : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluateTricube(double photonRadius, double maxRadius) {
-        return 70.0 / (81.0 * M_PI * maxRadius * maxRadius) *
-            pow(1 - pow(photonRadius / maxRadius, 3), 3);
-    }
+class KernelTricubo : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};  
 
-    double evaluateCosine(double photonRadius, double maxRadius) {
-        return 1.0 / (4.0 * maxRadius * maxRadius) * cos(M_PI * photonRadius / maxRadius / 2.0);
-    }
+class KernelCoseno : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    double evaluateLogistic(double photonRadius, double maxRadius) {
-        return 1.0 / (2.0 * maxRadius * maxRadius) /
-            (exp(photonRadius / maxRadius) + 2.0 + exp(-photonRadius / maxRadius));
-    }
+class KernelLogistico : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
+};
 
-    // General evaluate method (defaults to box kernel)
-    double evaluate(double photonRadius, double maxRadius) {
-        return evaluateBox(photonRadius, maxRadius);
-    }
+class KernelSigmoide : public Kernel {
+    public:
+    double evaluar(double radioFoton, double radioMax);
 };

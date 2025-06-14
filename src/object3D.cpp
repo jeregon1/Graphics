@@ -61,7 +61,7 @@ RGB Scene::calculateDirectLight(const Point& p) const {
 
 }
 
-MapaFotones Scene::generarMapaFotones(int nPaths, bool save, double sigma) {
+MapaFotones Scene::generarMapaFotones(int nPaths, bool save, double sigma) const {
     list<Foton> fotones;
     double totalEmision = 0.0;
     for (const auto& light : lights) totalEmision += light->light.max(); // Obtiene el total de emisión de todas las luces
@@ -80,8 +80,8 @@ MapaFotones Scene::generarMapaFotones(int nPaths, bool save, double sigma) {
 
 // TODO: Revisar que funcione el código
 // Estas dos imágenes generan una lista de fotones en la escena
-void Scene::reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& fotones, 
-            std::list<Foton>& causticos, bool esCaustico, bool save, double sigma) {
+void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones, 
+            list<Foton>& causticos, bool esCaustico, bool save, double sigma) const {
     
     // Variable initialization
     auto intersection = this->intersect(ray);
@@ -169,19 +169,100 @@ void Scene::reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& foto
     } while ((intersection = this->intersect(Ray(intersection->point, wi))));
 }
 
-/*
-// TODO: Complete photon mapping implementation - this function needs to be rewritten in English
-// RGB Scene::ecuacionRenderFotones(Point x, Direction wo, Object3D* geo, Direction n, 
-//             MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma) {
-//     // Implementation needs to be completed
-//     return RGB(0, 0, 0);
-// }
+// TODO: Refactorizar nombres de variables y funciones
+RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, Direction normal, 
+    MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma) const {
+    
+    // Caso base
+    if (material.isEmissive) {
+        return material.diffuse;
+    } 
 
-// RGB Scene::estimacionSiguienteEvento(Point x, Direction wo, Object3D* g, Direction n, double sigma) {
-//     // Implementation needs to be completed  
-//     return RGB(0, 0, 0);
-// }
-*/
+    double radioFotonMasLejano = 0.0;
+    double radioFoton = 0.0;
+    Point posFoton;
+    RGB L = RGB(0, 0, 0);
+
+    double probability = (double) rand0_1(); // Probabilidad aleatoria entre 0 y 1
+
+    // Seguimos hasta llegar a una superficie difusa, simulando el camino del foton
+    while (probability <= material.p_diffuse + material.p_specular + material.p_transparency) {
+
+        if (probability <= material.p_diffuse) {
+            if (wo * normal > 0.0) {
+                normal = Direction(-normal.x, -normal.y, -normal.z); // Dirección del rayo * normal de la intersección
+            } 
+            wo = wo - normal * 2.0f * (wo * normal); // Ecuación de reflexión
+        } else { // Especular
+            wo = material.refractar(wo, normal); // Ecuación de refracción
+        }
+
+        // Se maneja siguiente intersección
+        auto intersection = this->intersect(Ray(point, wo));
+        if (!intersection) {
+            return L; // Si no hay intersección, se devuelve la luz acumulada
+        } else {
+            point = intersection->point;
+            material = intersection->material;
+            normal = intersection->normal;
+            probability = (double) rand0_1();
+        }
+    }
+
+    if (probability <= material.p_diffuse) {
+
+        if (wo * normal > 0.0) {
+            normal = Direction(-normal.x, -normal.y, -normal.z); // Dirección del rayo * normal de la intersección
+        } 
+
+        // Obtener fotones cercanos con radio r y máximo k
+        // Función nearest_neighbors de la clase MapaFotones proporcionada por los profesores
+        vector<const Foton*> fotones = mapa.nearest_neighbors(newPoint, kFotones, radio);
+        
+        // Se obtiene el foton más lejano
+        for (const Foton* foton : fotones) {
+            posFoton = foton->posicion;
+            radioFoton = (posFoton - point).mod();
+            if (radioFoton > radioFotonMasLejano) radioFotonMasLejano = radioFoton;
+        }
+        for (const Foton* f : fotones) {
+            Direction wi = f->direccion;
+            double coseno = Direction(-normal.x, -normal.y, -normal.z) * wi;
+            if (coseno > 0.0) {
+                posFoton = f->posicion;
+                L = L + (material.diffuse / material.p_diffuse) * f->flujo
+                    *kernel->evaluar((posFoton - point).mod(), radioFotonMasLejano);
+            }
+        }
+        // Estimacion de la luz directa
+        if (!guardar) L = L + estimacionSiguienteEvento(point, wo, material, normal, sigma);
+    }
+    return L;
+}
+
+// Devuelve la luz directa en un punto de la escena sobre una geometria difusa
+RGB Scene::estimacionSiguienteEvento(Point point, Direction wo, Material material, Direction n, double sigma) const {
+    
+    RGB L = RGB(0, 0, 0);
+    // Recorremos todas las luces puntuales
+    // y calculamos la luz directa que llega al punto x
+    // con la BRDF de Lambert
+    for (int i = 0; i < lights.size(); i++) {
+        Direction wi = (lights[i]->center - point).normalize();
+        double norma = (lights[i]->center - point).mod();
+        norma = norma * norma; // Norma al cuadrado
+        double coseno = n * wi;
+        RGB fr = material.diffuse / M_PI; // BRDF Lambertiano
+        if (coseno > 0) {
+            auto interseccion = this->intersect(Ray(lights[i]->center, Direction(-wi.x, -wi.y, -wi.z)));
+            if (interseccion && interseccion->distance >= sqrt(norma) - EPSILON) {
+                if (sigma == 0.0) L = L + (fr * coseno) * (lights[i]->light / norma);
+                else L = L + (fr * coseno) * (lights[i]->light / norma) * pow(M_E, -sigma * norma);
+            }
+        }
+    }
+    return L;
+}
 
 string Scene::toString() const {
     string result;

@@ -281,3 +281,21 @@ RGB Escena::estimacionSiguienteEvento(Punto x, Direccion wo, Geometria* g, Direc
 Direccion Geometria::reflejar(Direccion wi, Direccion n) {
     return wi - 2*(wi*n)*n;
 }
+
+Direccion Geometria::refractar(Direccion wi, Direccion n) {
+    float eta = n_fuera / n_dentro;
+    float cosI = n.normalizado()*wi.normalizado();
+    Direccion normal = n.normalizado();
+    if (cosI < 0) {
+        cosI = -cosI;
+    } else {
+        normal = -normal;
+        eta = 1 / eta;
+    }
+    double k = 1 - eta * eta * (1.0 - cosI*cosI);
+    if (k < 0) {
+        return Direccion();
+    } else {
+        return eta*wi.normalizado() + (eta * cosI - sqrt(k))*normal;
+    }
+}

@@ -135,11 +135,11 @@ public:
     std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
     
     RGB calculateDirectLight(const Point& p) const;
-    MapaFotones generarMapaFotones(int nPaths, bool save, double sigma = 0.0f);
-    void reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& fotones, std::list<Foton>& causticos, bool esCaustico, bool save = false, double sigma = 0.0f);
-    RGB ecuacionRenderFotones(Point x, Direction wo, Object3D geo, Direction n, MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma = 0.0f);
-    RGB estimacionSiguienteEvento(Point x, Direction wo, Object3D g, Direction n, double sigma = 0.0f);
-
+    MapaFotones generarMapaFotones(int nPaths, bool save, double sigma = 0.0f) const;
+    void reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& fotones, std::list<Foton>& causticos, bool esCaustico, bool save = false, double sigma = 0.0f) const;
+    RGB ecuacionRenderFotones(Point x, Direction wo, Material material, Direction n, MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma = 0.0f) const;
+    RGB estimacionSiguienteEvento(Point point, Direction wo, Material material, Direction n, double sigma) const;
+ 
     void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
     std::string toString() const;
 };
@@ -170,8 +170,8 @@ private:
     RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
     RGB calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
     RGB calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
-    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel, 
-                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const;
+    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel,
+    MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel) const;
 
 };
 
