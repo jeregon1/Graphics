@@ -83,6 +83,8 @@ MapaFotones Scene::generarMapaFotones(int nPaths, bool save, double sigma) const
 void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones, 
             list<Foton>& causticos, bool esCaustico, bool save, double sigma) const {
     
+    (void)save; // Suppress unused parameter warning
+    
     // Variable initialization
     auto intersection = this->intersect(ray);
     bool primerRebote = true;
@@ -217,7 +219,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
 
         // Obtener fotones cercanos con radio r y máximo k
         // Función nearest_neighbors de la clase MapaFotones proporcionada por los profesores
-        vector<const Foton*> fotones = mapa.nearest_neighbors(newPoint, kFotones, radio);
+        vector<const Foton*> fotones = mapa.nearest_neighbors(point, kFotones, radio);
         
         // Se obtiene el foton más lejano
         for (const Foton* foton : fotones) {
@@ -243,11 +245,13 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
 // Devuelve la luz directa en un punto de la escena sobre una geometria difusa
 RGB Scene::estimacionSiguienteEvento(Point point, Direction wo, Material material, Direction n, double sigma) const {
     
+    (void)wo; // Suppress unused parameter warning
+    
     RGB L = RGB(0, 0, 0);
     // Recorremos todas las luces puntuales
     // y calculamos la luz directa que llega al punto x
     // con la BRDF de Lambert
-    for (int i = 0; i < lights.size(); i++) {
+    for (size_t i = 0; i < lights.size(); i++) {
         Direction wi = (lights[i]->center - point).normalize();
         double norma = (lights[i]->center - point).mod();
         norma = norma * norma; // Norma al cuadrado
@@ -364,7 +368,7 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     Point base = Point(normal.x, normal.y, normal.z) * distance; // Point of the plane
     float t = normal.dot(base - r.origin) / denominator; // Distance from the ray origin to the intersection point
 
-    // If the intersection point is behind the ray origin, there is no intersection
+    // If the intersection point is behind the ray origin, it means there's no intersection
     if (t < 0)
         return nullopt;
 
@@ -495,3 +499,75 @@ string Cone::toString() const {
 /*************
  * Cylinder *
  *************/
+
+optional<Intersection> Cylinder::intersect(const Ray& ray) const {
+    const float EPS = 1e-8f;
+    
+    // Transform ray to cylinder's local coordinate system
+    // Assume cylinder axis is along Y direction
+    Direction co = ray.origin - base;
+    
+    // For a cylinder with axis along Y, equation is: x² + z² = radius²
+    // We only consider the x and z components for the cylindrical surface
+    
+    float a = ray.direction.x * ray.direction.x + ray.direction.z * ray.direction.z;
+    
+    // If ray is parallel to cylinder axis, no intersection with curved surface
+    if (abs(a) < EPS) {
+        return nullopt;
+    }
+    
+    float b = 2.0f * (co.x * ray.direction.x + co.z * ray.direction.z);
+    float c = co.x * co.x + co.z * co.z - radius * radius;
+
+    float discriminant = b * b - 4.0f * a * c;
+
+    if (discriminant < 0) {
+        return nullopt;
+    }
+
+    float sqrt_discriminant = sqrt(discriminant);
+    float t1 = (-b - sqrt_discriminant) / (2.0f * a);
+    float t2 = (-b + sqrt_discriminant) / (2.0f * a);
+
+    // Check both intersections and choose the closest valid one
+    float t = -1;
+    
+    // Check first intersection
+    if (t1 > EPS) {
+        Point testPoint = ray.at(t1);
+        Direction localPoint = testPoint - base;
+        if (localPoint.y >= 0 && localPoint.y <= height) {
+            t = t1;
+        }
+    }
+    
+    // Check second intersection if first wasn't valid
+    if (t < 0 && t2 > EPS) {
+        Point testPoint = ray.at(t2);
+        Direction localPoint = testPoint - base;
+        if (localPoint.y >= 0 && localPoint.y <= height) {
+            t = t2;
+        }
+    }
+    
+    if (t <= EPS) {
+        return nullopt;
+    }
+
+    Point intersectionPoint = ray.at(t);
+    Direction localPoint = intersectionPoint - base;
+    
+    // Calculate normal at intersection point
+    // For a cylinder, normal is perpendicular to the axis and pointing outward
+    Direction normal = Direction(localPoint.x, 0, localPoint.z).normalize();
+    
+    return Intersection(t, intersectionPoint, normal, material);
+}
+
+string Cylinder::toString() const {
+    stringstream ss;
+    ss << "Cylinder(base: " << base.toString() << ", axis: " << axis.toString() 
+       << ", radius: " << radius << ", height: " << height << ")";
+    return ss.str();
+}

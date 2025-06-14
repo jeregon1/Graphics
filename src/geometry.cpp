@@ -28,7 +28,7 @@ using namespace std;
 
 Coordinate::Coordinate(float x, float y, float z) : x(x), y(y), z(z) {}
 
-float& Coordinate::operator[](int index) {
+const float& Coordinate::operator[](int index) const {
     switch (index) {
             case 0: return x;
             case 1: return y;

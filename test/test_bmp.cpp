@@ -10,7 +10,7 @@
 
 using namespace std;
 
-#define OUTPUT_DIR "test_outputs/"
+constexpr string OUTPUT_DIR = "test_outputs/";
 
 int main() {
     cout << "=== BMP Format Test ===" << endl;

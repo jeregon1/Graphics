@@ -16,6 +16,9 @@
 #include "kernel.hpp"
 #include "utils.hpp"
 
+// Forward declarations
+struct ParallelConfig;
+
 #define EPSILON 1e-6
 
 #ifndef M_PI
@@ -159,6 +162,31 @@ public:
     Image renderPhotonMapping(const Scene& scene, unsigned samplesPerPixel, 
                 MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const;
 
+    // Sequential rendering methods (for comparison/fallback)
+    Image renderRayTracingSequential(const Scene& scene, unsigned samplesPerPixel) const;
+    Image renderPathTracingSequential(const Scene& scene, unsigned samplesPerPixel) const;
+    Image renderPhotonMappingSequential(const Scene& scene, unsigned samplesPerPixel, 
+                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const;
+
+    // Parallel rendering methods
+    Image renderRayTracingParallel(const Scene& scene, unsigned samplesPerPixel,
+                                  const struct ParallelConfig& config) const;
+    Image renderPathTracingParallel(const Scene& scene, unsigned samplesPerPixel,
+                                   const struct ParallelConfig& config) const;
+    Image renderPhotonMappingParallel(const Scene& scene, unsigned samplesPerPixel,
+                                     MapaFotones mapa, unsigned kFotones, double radio,
+                                     Kernel* kernel, const struct ParallelConfig& config) const;
+
+    // Accessors for parallel rendering
+    int getWidth() const { return width; }
+    int getHeight() const { return height; }
+
+public:  // Make pixel color calculation methods public for parallel access
+    RGB calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
+    RGB calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
+    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel,
+    MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel) const;
+
 private:
 
     Point origin;
@@ -168,10 +196,6 @@ private:
     Ray generateRay(float x, float y) const;
     RGB traceRay(const Ray& ray, const Scene& scene) const;
     RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
-    RGB calculatePixelColorRayTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
-    RGB calculatePixelColorPathTracing(const Scene& scene, float x, float y, unsigned samplesPerPixel) const;
-    RGB calculatePixelColorPhotonMapping(const Scene& scene, float x, float y, unsigned samplesPerPixel,
-    MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel) const;
 
 };
 
@@ -206,7 +230,6 @@ public:
     std::string toString() const;
 };
 
-// No implementados
 class Triangle : public Object3D {
 public:
     Point a, b, c;
@@ -234,4 +257,18 @@ public:
     std::string toString() const;
 };
 
-// Cylinder, ellipsoid, disk
+class Cylinder : public Object3D {
+public:
+    Point base;
+    Direction axis;
+    float radius, height;
+
+    Cylinder(const Point& base, const Direction& axis, float radius, float height, const Material& material) :
+        Object3D(material), base(base), axis(axis.normalize()), radius(radius), height(height) {}
+
+    std::optional<Intersection> intersect(const Ray& ray) const;
+
+    std::string toString() const;
+};
+
+// Ellipsoid, disk

@@ -1,5 +1,6 @@
 #include "../include/object3D.hpp"
 #include "../include/Image.hpp"
+#include "../include/parallel_renderer.hpp"
 #include <vector>
 #include <fstream>
 #include <random>
@@ -26,52 +27,25 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
 
 // TODO: Por algún motivo, no funcionan las intersecciones con los planos
 Image PinholeCamera::renderRayTracing(const Scene& scene, unsigned samplesPerPixel) const {
-    vector<RGB> pixels(height * width);
-
-    for (int y = 0; y < height; y++) {
-        float normalizedY = static_cast<float>(y) - (height / 2);
-        for (int x = 0; x < width; x++) {
-            float normalizedX = static_cast<float>(x) - (width / 2);
-            // Calculate the color of the pixel at (x, y)
-            RGB pixelColor = calculatePixelColorRayTracing(scene, normalizedX, normalizedY, samplesPerPixel);
-            pixels[y * width + x] = pixelColor;
-        }
-    }
-
-    return Image(width, height, pixels);
+    // Use column parallelization by default for better performance
+    ParallelConfig config(RegionType::COLUMN, 8, 4); // 8 columns per task, 4 threads
+    ParallelRenderer renderer(config);
+    return renderer.renderRayTracing(*this, scene, samplesPerPixel);
 }
 
 Image PinholeCamera::renderPathTracing(const Scene& scene, unsigned samplesPerPixel) const {
-    vector<RGB> pixels(height * width);
-
-    for (int y = 0; y < height; y++) {
-        float normalizedY = static_cast<float>(y) - (height / 2);
-        for (int x = 0; x < width; x++) {
-            float normalizedX = static_cast<float>(x) - (width / 2);
-            // Calculate the color of the pixel at (x, y)
-            RGB pixelColor = calculatePixelColorPathTracing(scene, normalizedX, normalizedY, samplesPerPixel);
-            pixels[y * width + x] = pixelColor;
-        }
-    }
-
-    return Image(width, height, pixels);
+    // Use column parallelization by default for better performance
+    ParallelConfig config(RegionType::COLUMN, 8, 4); // 8 columns per task, 4 threads
+    ParallelRenderer renderer(config);
+    return renderer.renderPathTracing(*this, scene, samplesPerPixel);
 }
 
 Image PinholeCamera::renderPhotonMapping(const Scene& scene, unsigned samplesPerPixel, 
                 MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const {
-    
-    vector<RGB> pixels(height * width);
-    
-    for (int y = 0; y < height; y++) {
-        float normalizedY = static_cast<float>(y) - (height / 2);
-        for (int x = 0; x < width; x++) {
-            float normalizedX = static_cast<float>(x) - (width / 2);
-            RGB pixelColor = calculatePixelColorPhotonMapping(scene, normalizedX, normalizedY, samplesPerPixel, 
-                mapa, kFotones, radio, true, kernel);
-            pixels[y * width + x] = pixelColor;
-        }
-    }
-    return Image(width, height, pixels);
+    // Use column parallelization by default for better performance
+    ParallelConfig config(RegionType::COLUMN, 8, 4); // 8 columns per task, 4 threads
+    ParallelRenderer renderer(config);
+    return renderer.renderPhotonMapping(*this, scene, samplesPerPixel, mapa, kFotones, radio, kernel);
 }
 
 /********************
@@ -279,4 +253,76 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
 
     // Suma de luz directa e indirecta
     return directLight * brdf * cosTheta + reflectedColor;
+}
+
+/**
+ * Parallel Rendering Methods
+ */
+Image PinholeCamera::renderRayTracingParallel(const Scene& scene, unsigned samplesPerPixel,
+                                             const ParallelConfig& config) const {
+    ParallelRenderer renderer(config);
+    return renderer.renderRayTracing(*this, scene, samplesPerPixel);
+}
+
+Image PinholeCamera::renderPathTracingParallel(const Scene& scene, unsigned samplesPerPixel,
+                                              const ParallelConfig& config) const {
+    ParallelRenderer renderer(config);
+    return renderer.renderPathTracing(*this, scene, samplesPerPixel);
+}
+
+Image PinholeCamera::renderPhotonMappingParallel(const Scene& scene, unsigned samplesPerPixel,
+                                                MapaFotones mapa, unsigned kFotones, double radio,
+                                                Kernel* kernel, const ParallelConfig& config) const {
+    ParallelRenderer renderer(config);
+    return renderer.renderPhotonMapping(*this, scene, samplesPerPixel, mapa, kFotones, radio, kernel);
+}
+
+/**
+ * Sequential Rendering Methods (for comparison/fallback)
+ */
+Image PinholeCamera::renderRayTracingSequential(const Scene& scene, unsigned samplesPerPixel) const {
+    vector<RGB> pixels(height * width);
+
+    for (int y = 0; y < height; y++) {
+        float normalizedY = static_cast<float>(y) - (height / 2);
+        for (int x = 0; x < width; x++) {
+            float normalizedX = static_cast<float>(x) - (width / 2);
+            RGB pixelColor = calculatePixelColorRayTracing(scene, normalizedX, normalizedY, samplesPerPixel);
+            pixels[y * width + x] = pixelColor;
+        }
+    }
+
+    return Image(width, height, pixels);
+}
+
+Image PinholeCamera::renderPathTracingSequential(const Scene& scene, unsigned samplesPerPixel) const {
+    vector<RGB> pixels(height * width);
+
+    for (int y = 0; y < height; y++) {
+        float normalizedY = static_cast<float>(y) - (height / 2);
+        for (int x = 0; x < width; x++) {
+            float normalizedX = static_cast<float>(x) - (width / 2);
+            RGB pixelColor = calculatePixelColorPathTracing(scene, normalizedX, normalizedY, samplesPerPixel);
+            pixels[y * width + x] = pixelColor;
+        }
+    }
+
+    return Image(width, height, pixels);
+}
+
+Image PinholeCamera::renderPhotonMappingSequential(const Scene& scene, unsigned samplesPerPixel, 
+                MapaFotones mapa, unsigned kFotones, double radio, Kernel* kernel) const {
+    
+    vector<RGB> pixels(height * width);
+    
+    for (int y = 0; y < height; y++) {
+        float normalizedY = static_cast<float>(y) - (height / 2);
+        for (int x = 0; x < width; x++) {
+            float normalizedX = static_cast<float>(x) - (width / 2);
+            RGB pixelColor = calculatePixelColorPhotonMapping(scene, normalizedX, normalizedY, samplesPerPixel, 
+                mapa, kFotones, radio, true, kernel);
+            pixels[y * width + x] = pixelColor;
+        }
+    }
+    return Image(width, height, pixels);
 }

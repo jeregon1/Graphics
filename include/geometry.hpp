@@ -15,7 +15,7 @@ public:
 
     Coordinate(float x = 0, float y = 0, float z = 0);
 
-    float& operator[](int index);
+    const float& operator[](int index) const;
 
     virtual string toString() const;
 
