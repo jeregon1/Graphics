@@ -421,7 +421,7 @@ namespace {
         Point origin(0, 0, -3);
         Direction left(-1, 0, 0);
         Direction up(0, 1, 0);
-        Direction forward(0, 0, 3);
+        Direction forward(0, 0, 1);
         int width = 512, height = 512;
         int fov = -1; // -1 indicates FOV not set
         
@@ -475,7 +475,7 @@ namespace {
         
         // If FOV is set, use FOV constructor
         if (fov != -1)
-            return PinholeCamera(origin, fov, width, height);
+            return PinholeCamera(origin, fov, width, height, forward);
         else
             return PinholeCamera(origin, up, left, forward, width, height);
     }
@@ -566,6 +566,7 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
         Point origin = camera->getOrigin();
         file << "  origin: " << origin.x << " " << origin.y << " " << origin.z << "\n";
         file << "  fov: " << camera->getFOV() << "\n";
+        file << "  forward: " << camera->getForward().x << " " << camera->getForward().y << " " << camera->getForward().z << "\n";
         file << "  pixels: " << camera->getWidth() << " " << camera->getHeight() << "\n";
         // Note: Camera internal vectors are private, so we output basic info
         // For full camera reconstruction, we'd need accessor methods

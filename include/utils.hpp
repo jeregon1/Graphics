@@ -19,7 +19,6 @@ inline double rand0_1() {
 /* 
  *  Este código implementa una función para muestrear direcciones aleatorias uniformemente distribuidas sobre la superficie de una esfera
  */
-
 inline Direction muestraAleatoriaUniforme() {
     // Genera dos números aleatorios uniformes en [0, 1)
     double u = rand0_1();

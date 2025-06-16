@@ -129,28 +129,11 @@ std::unique_ptr<TaskQueue> QueueFactory::createQueue(QueueType type) {
     }
 }
 
-/**
- * ParallelRenderer Implementation
- */
-ParallelRenderer::ParallelRenderer(const RenderConfig& config)
-    : config_(config) {}
-
 // Unified parallel render entry point
 Image ParallelRenderer::render(const PinholeCamera& camera,
                                const Scene& scene,
-                               unsigned samplesPerPixel,
-                               const RenderConfig& cfg) {
-    config_ = cfg;
-    return runParallel(camera, scene, samplesPerPixel, cfg);
-}
-
-// Updated signature: drop explicit algorithm parameter
-Image ParallelRenderer::runParallel(
-    const PinholeCamera& camera,
-    const Scene& scene,
-    unsigned samplesPerPixel,
-    const RenderConfig& cfg
-) const {
+                               const RenderConfig& cfg,
+                               RenderStats* stats) {
     auto startTime = std::chrono::high_resolution_clock::now();
 
     int width = camera.getWidth();
@@ -161,9 +144,8 @@ Image ParallelRenderer::runParallel(
     std::vector<RGB> pixels(width * height);
     auto taskQueue = QueueFactory::createQueue(cfg.queueType);
 
-    for (auto& t : tasks) {
+    for (auto& t : tasks)
         taskQueue->push(t);
-    }
 
     // Pick strategy from cfg.algorithm
     auto strategy = StrategyFactory::createStrategy(cfg.algorithm);
@@ -171,42 +153,26 @@ Image ParallelRenderer::runParallel(
     std::vector<std::thread> workers;
 
     for (int i = 0; i < cfg.numThreads; ++i) {
-        workers.emplace_back([&taskQueue, &strategy, &camera, &scene, &pixels, &cfg, width, height, samplesPerPixel]() {
+        workers.emplace_back([&taskQueue, &strategy, &camera, &scene, &pixels, &cfg, width, height]() {
             RenderTask task(0, 0, 0, 0);
 
             while (taskQueue->pop(task)) {
-                for (int y = task.startY; y < task.endY; ++y) {
-                    float ny = float(y) - (height / 2.0f);
-
-                    for (int x = task.startX; x < task.endX; ++x) {
-                        float nx = float(x) - (width / 2.0f);
-
-                        pixels[y * width + x] = strategy->calculatePixelColor(
-                            camera, scene, nx, ny, samplesPerPixel, cfg
-                        );
-                    }
-                }
+                camera.renderRegion(pixels, scene, cfg, task.startY, task.startX, task.endY, task.endX);
             }
         });
     }
 
     static_cast<StandardTaskQueue*>(taskQueue.get())->finish();
 
-    for (auto& w : workers) {
+    for (auto& w : workers)
         w.join();
-    }
 
     auto endTime = std::chrono::high_resolution_clock::now();
     auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
-    lastStats_ = {
-        dur.count() / 1000.0,
-        int(tasks.size()),
-        cfg.numThreads,
-        cfg.regionType,
-        cfg.regionSize
-    };
-
+    if (stats)
+        *stats = {dur.count() / 1000.0, int(tasks.size()), cfg.numThreads, cfg.regionType, cfg.regionSize};
+        
     return Image(width, height, pixels);
 }
 
@@ -214,18 +180,16 @@ Image ParallelRenderer::runParallel(
  * RenderBenchmark Implementation
  */
 void RenderBenchmark::benchmarkConfigurations(const PinholeCamera& camera, const Scene& scene,
-                                             const std::vector<RenderConfig>& configs,
-                                             unsigned samplesPerPixel) {
+                                             const std::vector<RenderConfig>& configs) {
     std::cout << "=== Parallel Rendering Benchmark ===\n";
     std::cout << "Configuration\t\tTime(s)\t\tTasks\t\tThreads\n";
     std::cout << "-------------------------------------------------------\n";
     for (const auto& cfg : configs) {
-        ParallelRenderer renderer(cfg);
+        ParallelRenderer::RenderStats stats;
         auto startTime = std::chrono::high_resolution_clock::now();
-        renderer.render(camera, scene, samplesPerPixel, cfg);
+        ParallelRenderer::render(camera, scene, cfg, &stats);
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-        auto stats = renderer.getLastRenderStats();
         std::string regionName;
         switch (cfg.regionType) {
             case RegionType::PIXEL: regionName = "PIXEL"; break;
@@ -240,8 +204,7 @@ void RenderBenchmark::benchmarkConfigurations(const PinholeCamera& camera, const
     }
 }
 
-RenderConfig RenderBenchmark::findOptimalConfig(const PinholeCamera& camera, const Scene& scene,
-                                               unsigned samplesPerPixel) {
+RenderConfig RenderBenchmark::findOptimalConfig(const PinholeCamera& camera, const Scene& scene) {
     std::vector<RenderConfig> configs = {
         [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=16; c.numThreads=4; return c; }(),
         [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=32; c.numThreads=4; return c; }(),
@@ -256,9 +219,9 @@ RenderConfig RenderBenchmark::findOptimalConfig(const PinholeCamera& camera, con
     RenderConfig bestConfig = configs[0];
     double bestTime = std::numeric_limits<double>::max();
     for (const auto& cfg : configs) {
-        ParallelRenderer renderer(cfg);
+        ParallelRenderer renderer;
         auto startTime = std::chrono::high_resolution_clock::now();
-        renderer.render(camera, scene, samplesPerPixel, cfg);
+        renderer.render(camera, scene, cfg);
         auto endTime = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         double time = duration.count() / 1000.0;

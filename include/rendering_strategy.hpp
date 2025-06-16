@@ -13,29 +13,25 @@ public:
     virtual ~RenderingStrategy() = default;
     
     virtual RGB calculatePixelColor(const PinholeCamera& camera, const Scene& scene, 
-                                   float x, float y, unsigned samples, 
-                                   const RenderConfig& config) const = 0;
+                                   float x, float y, const RenderConfig& config) const = 0;
 };
 
 class RayTracingStrategy : public RenderingStrategy {
 public:
     RGB calculatePixelColor(const PinholeCamera& camera, const Scene& scene, 
-                           float x, float y, unsigned samples, 
-                           const RenderConfig& config) const override;
+                           float x, float y, const RenderConfig& config) const override;
 };
 
 class PathTracingStrategy : public RenderingStrategy {
 public:
     RGB calculatePixelColor(const PinholeCamera& camera, const Scene& scene, 
-                           float x, float y, unsigned samples, 
-                           const RenderConfig& config) const override;
+                           float x, float y, const RenderConfig& config) const override;
 };
 
 class PhotonMappingStrategy : public RenderingStrategy {
 public:
     RGB calculatePixelColor(const PinholeCamera& camera, const Scene& scene, 
-                           float x, float y, unsigned samples, 
-                           const RenderConfig& config) const override;
+                           float x, float y, const RenderConfig& config) const override;
 };
 
 class StrategyFactory {

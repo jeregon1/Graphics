@@ -9,7 +9,7 @@
 
 using namespace std;
 
-void run_cornell_box_test(const string& sceneFile) {
+void run_cornell_box_test(const string& sceneFile, const string& renderConfigFile = "configs/default_config.yaml") {
 
     // Load from scenes folder
     string scenePath = "scenes/" + sceneFile;
@@ -32,9 +32,18 @@ void run_cornell_box_test(const string& sceneFile) {
     cout << "Camera: " << camera.toString() << endl;
     cout << "Scene: " << scene.toString() << endl;
 
+    auto configOpt = RenderConfig::fromYAML(renderConfigFile);
+    RenderConfig config;
+    if (configOpt) {
+        cout << "Using render config from " << renderConfigFile << endl;
+        config = *configOpt;
+    } else {
+        cout << "Using default render config." << endl;
+        config = RenderConfig();
+    }
+
     cout << "Rendering scene..." << endl;
-    RenderConfig config = RenderConfig(RenderingAlgorithm::RAY_TRACING, RenderingMode::SEQUENTIAL);
-    Image image = camera.renderRayTracing(scene, 16, config);  // Reduced samples for faster testing
+    Image image = camera.render(scene, config);  // Reduced samples for faster testing
     
     string newFile = sceneFile.substr(0, sceneFile.length()-5);
     image.writePPM(newFile + ".ppm");

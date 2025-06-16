@@ -39,29 +39,51 @@ enum class AccelerationStructure {
 
 // Simple array-based toString functions
 inline const char* toString(RenderingAlgorithm alg) {
-    static const char* names[] = {"RAY_TRACING", "PATH_TRACING", "PHOTON_MAPPING"};
+    static const char* names[] = {"ray_tracing", "path_tracing", "photon_mapping"};
     return names[static_cast<int>(alg)];
 }
 
 inline const char* toString(RenderingMode mode) {
-    static const char* names[] = {"SEQUENTIAL", "PARALLEL"};
+    static const char* names[] = {"sequential", "parallel"};
     return names[static_cast<int>(mode)];
 }
 
 inline const char* toString(RegionType type) {
-    static const char* names[] = {"PIXEL", "LINE", "COLUMN", "RECTANGLE"};
+    static const char* names[] = {"pixel", "line", "column", "rectangle"};
     return names[static_cast<int>(type)];
 }
 
 inline const char* toString(QueueType type) {
-    static const char* names[] = {"STD_QUEUE", "LOCK_FREE_QUEUE", "WORK_STEALING"};
+    static const char* names[] = {"std_queue", "lock_free_queue", "work_stealing"};
     return names[static_cast<int>(type)];
 }
 
 inline const char* toString(AccelerationStructure acc) {
-    static const char* names[] = {"NONE", "KDTREE", "BVH"};
+    static const char* names[] = {"none", "kdtree", "bvh"};
     return names[static_cast<int>(acc)];
 }
+
+// Operator<< overloads for enums
+inline std::ostream& operator<<(std::ostream& os, RenderingAlgorithm alg) {
+    return os << toString(alg);
+}
+
+inline std::ostream& operator<<(std::ostream& os, RenderingMode mode) {
+    return os << toString(mode);
+}
+
+inline std::ostream& operator<<(std::ostream& os, RegionType type) {
+    return os << toString(type);
+}
+
+inline std::ostream& operator<<(std::ostream& os, QueueType type) {
+    return os << toString(type);
+}
+
+inline std::ostream& operator<<(std::ostream& os, AccelerationStructure acc) {
+    return os << toString(acc);
+}
+
 
 struct RenderConfig {
     RenderingAlgorithm algorithm = RenderingAlgorithm::PATH_TRACING;
@@ -80,11 +102,12 @@ struct RenderConfig {
     double radius = 0.1;
     Kernel* kernel = nullptr;
 
+    // Additional rendering parameters
+    unsigned samplesPerPixel = 4;
+
     // Constructors for convenience
-    RenderConfig() = default;
-    
-    RenderConfig(RenderingAlgorithm alg, RenderingMode mode = RenderingMode::PARALLEL) 
-        : algorithm(alg), mode(mode) {}
+    RenderConfig(RenderingAlgorithm alg = RenderingAlgorithm::RAY_TRACING, unsigned samplesPerPixel = 4, RenderingMode mode = RenderingMode::PARALLEL) 
+        : algorithm(alg), mode(mode), samplesPerPixel(samplesPerPixel) {}
     
     // Photon-mapping ctor, delegates algo setting then initializes its own fields
     RenderConfig(MapaFotones* pMap, unsigned k, double r, Kernel* kern)
@@ -103,6 +126,7 @@ struct RenderConfig {
                ", regionSize: " + std::to_string(regionSize) +
                ", numThreads: " + std::to_string(numThreads) +
                ", queueType: " + ::toString(queueType) +
+               ", samplesPerPixel: " + std::to_string(samplesPerPixel) +
                ")";
     }
     

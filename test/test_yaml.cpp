@@ -9,7 +9,7 @@ int main() {
     
     // Test 1: RenderConfig YAML
     std::cout << "\n--- Testing RenderConfig YAML ---" << std::endl;
-    auto configOpt = RenderConfig::fromYAML("configs/default_render.yaml");
+    auto configOpt = RenderConfig::fromYAML("configs/default_config.yaml");
     if (!configOpt) {
         std::cerr << "Failed to load render config" << std::endl;
         return 1;

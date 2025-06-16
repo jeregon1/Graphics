@@ -88,8 +88,8 @@ void testRenderingAlgorithms(const Scene& scene, const PinholeCamera& camera, un
     for (const auto& [algo, name] : algorithms) {
         auto start = chrono::high_resolution_clock::now();
         
-        RenderConfig config(algo, RenderingMode::SEQUENTIAL);
-        Image image = camera.render(scene, samples, config);
+        RenderConfig config(algo, samples, RenderingMode::SEQUENTIAL);
+        Image image = camera.render(scene, config);
         
         auto end = chrono::high_resolution_clock::now();
         auto renderTime = chrono::duration_cast<chrono::milliseconds>(end - start);
@@ -107,8 +107,8 @@ void testParallelization(const Scene& scene, const PinholeCamera& camera, unsign
     
     // Test sequential vs parallel
     auto start = chrono::high_resolution_clock::now();
-    RenderConfig sequentialConfig(RenderingAlgorithm::PATH_TRACING, RenderingMode::SEQUENTIAL);
-    Image sequentialImage = camera.render(scene, samples, sequentialConfig);
+    RenderConfig sequentialConfig(RenderingAlgorithm::PATH_TRACING, samples, RenderingMode::SEQUENTIAL);
+    Image sequentialImage = camera.render(scene, sequentialConfig);
     auto end = chrono::high_resolution_clock::now();
     auto sequentialTime = chrono::duration_cast<chrono::milliseconds>(end - start);
     
@@ -128,9 +128,8 @@ void testParallelization(const Scene& scene, const PinholeCamera& camera, unsign
          << setw(12) << "1.00x" << endl;
     
     for (const auto& config : configs) {
-        ParallelRenderer renderer(config);
         auto start = chrono::high_resolution_clock::now();
-        Image parallelImage = renderer.render(camera, scene, samples, config);
+        Image parallelImage = ParallelRenderer::render(camera, scene, config);
         auto end = chrono::high_resolution_clock::now();
         auto parallelTime = chrono::duration_cast<chrono::milliseconds>(end - start);
         
@@ -199,9 +198,9 @@ void testAccelerationStructures(unsigned samples) {
             
             // Render with acceleration structure
             auto renderStart = chrono::high_resolution_clock::now();
-            RenderConfig config(RenderingAlgorithm::RAY_TRACING);
+            RenderConfig config(RenderingAlgorithm::RAY_TRACING, samples);
             config.acceleration = accel;
-            Image image = camera.render(scene, samples, config);
+            Image image = camera.render(scene, config);
             auto renderEnd = chrono::high_resolution_clock::now();
             auto renderTime = chrono::duration_cast<chrono::milliseconds>(renderEnd - renderStart);
             
@@ -229,7 +228,7 @@ void testCombinedFeatures(const Scene&, const PinholeCamera& camera, unsigned sa
     cout << "Testing PATH_TRACING + PARALLEL + KDTREE acceleration\n";
     
     // Test the combination of all features
-    RenderConfig config(RenderingAlgorithm::PATH_TRACING, RenderingMode::PARALLEL);
+    RenderConfig config(RenderingAlgorithm::PATH_TRACING, samples, RenderingMode::PARALLEL);
     config.acceleration = AccelerationStructure::KDTREE;
     config.regionType = RegionType::RECTANGLE;
     config.regionSize = 16;
@@ -243,8 +242,7 @@ void testCombinedFeatures(const Scene&, const PinholeCamera& camera, unsigned sa
     
     // Render with all features combined
     auto renderStart = chrono::high_resolution_clock::now();
-    ParallelRenderer renderer(config);
-    Image image = renderer.render(camera, testScene, samples, config);
+    Image image = ParallelRenderer::render(camera, testScene, config);
     auto renderEnd = chrono::high_resolution_clock::now();
     
     auto buildTime = chrono::duration_cast<chrono::milliseconds>(buildEnd - buildStart);

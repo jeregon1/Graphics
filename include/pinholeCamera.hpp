@@ -7,56 +7,44 @@
 #include "foton.hpp"
 #include "kernel.hpp"
 #include "object3D.hpp"
+#include "rendering_strategy.hpp"
 
 class Scene;
 
 class PinholeCamera {
 public:
-    PinholeCamera() = default;
-
-    PinholeCamera(const Point& origin) : PinholeCamera(origin, 50, 256, 256) {}
-
-    PinholeCamera(const Point& origin, const int FOV, const int width, const int height);
+    PinholeCamera(const Point& origin = Point(0,0,-3), const int FOV = 50, const int width = 256, const int height = 256, const Direction& forward = Direction(0, 0, 1));
 
     PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
-        : origin(origin), left(left), up(up), forward(forward), width(width), height(height) {
-        // Store extents before normalizing
-        halfExtentX = left.mod();
-        halfExtentY = up.mod();
-        // Then normalize
-        this->left = left.normalize();
-        this->up = up.normalize();
-        
-        calculatePixelSizes();
-    }
+        : origin(origin), left(left), up(up), forward(forward), width(width), height(height), halfExtentX(left.mod()), halfExtentY(up.mod())
+        { calculatePixelSizes(); }
 
     // Main unified render method
-    Image render(const Scene& scene, unsigned samplesPerPixel, 
-                const RenderConfig& config = RenderConfig{}) const;
+    Image render(const Scene& scene, const RenderConfig& config = RenderConfig{}) const;
     
     // Convenience methods (thin wrappers for backward compatibility)
-    Image renderPathTracing(const Scene& scene, unsigned samples, const RenderConfig& rc = RenderConfig{RenderingAlgorithm::PATH_TRACING}) const {
-        return render(scene, samples, rc);
+    Image renderPathTracing(const Scene& scene, const RenderConfig& config = RenderConfig{RenderingAlgorithm::PATH_TRACING}) const {
+        return render(scene, config);
     }
     
-    Image renderRayTracing(const Scene& scene, unsigned samples, const RenderConfig& rc = RenderConfig{RenderingAlgorithm::RAY_TRACING}) const {
-        return render(scene, samples, rc);
+    Image renderRayTracing(const Scene& scene, const RenderConfig& config = RenderConfig{RenderingAlgorithm::RAY_TRACING}) const {
+        return render(scene, config);
     }
     
-    Image renderPhotonMapping(const Scene& scene, unsigned samples, 
-                MapaFotones mapa, unsigned kPhotons, double radio, Kernel* kernel) const {
-        RenderConfig config{RenderingAlgorithm::PHOTON_MAPPING};
+    Image renderPhotonMapping(const Scene& scene, MapaFotones mapa, unsigned kPhotons, double radio, Kernel* kernel, RenderConfig config) const {
+        config.algorithm = RenderingAlgorithm::PHOTON_MAPPING;
         config.photonMap = &mapa;
         config.kPhotons = kPhotons;
         config.radius = radio;
         config.kernel = kernel;
-        return render(scene, samples, config);
+        return render(scene, config);
     }
 
     // Accessors
     Point getOrigin() const { return origin; }
     int getWidth() const { return width; }
     int getHeight() const { return height; }
+    Direction getForward() const { return forward; }
     float getFOV() const { return 2 * atan(halfExtentX) * (180.0f / M_PI); } // Returns FOV in degrees
     float getHalfExtentX() const { return halfExtentX; }
     float getHalfExtentY() const { return halfExtentY; }
@@ -73,16 +61,18 @@ public:
 
     std::string toString() const {
         return "PinholeCamera(origin: " + origin.toString() + 
-               ", left: " + left.toString() + 
-               ", up: " + up.toString() + 
-               ", forward: " + forward.toString() + 
-               ", width: " + std::to_string(width) + 
-               ", height: " + std::to_string(height) + ")";
+               ", FOV: " + std::to_string(getFOV()) +
+               ", forward: " + forward.toString() +
+               ", pixels: " + std::to_string(width) + "x" + std::to_string(height) + ")";
     }
 
     friend std::ostream& operator<<(std::ostream& os, const PinholeCamera& camera) {
         return os << camera.toString();
     }
+
+    // Shared pixel rendering logic for both serial and parallel
+    void renderRegion(std::vector<RGB>& pixels, const Scene& scene, const RenderConfig& config, 
+        int startY = 0, int startX = 0, int endY = -1, int endX = -1) const;
 
 private:
     Point origin;

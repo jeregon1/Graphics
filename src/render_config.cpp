@@ -114,6 +114,11 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             if (lineStream >> value) {
                 config.radius = value;
             }
+        } else if (key == "samples_per_pixel" || key == "samplesPerPixel") {
+            unsigned value;
+            if (lineStream >> value) {
+                config.samplesPerPixel = value;
+            }
         }
     }
     
@@ -131,57 +136,34 @@ void RenderConfig::saveToYAML(const std::string& filename) const {
     file << "# Generated automatically\n\n";
     
     // Algorithm
-    file << "algorithm: ";
-    switch (algorithm) {
-        case RenderingAlgorithm::RAY_TRACING: file << "ray_tracing"; break;
-        case RenderingAlgorithm::PATH_TRACING: file << "path_tracing"; break;
-        case RenderingAlgorithm::PHOTON_MAPPING: file << "photon_mapping"; break;
-    }
+    file << "samples_per_pixel: " << samplesPerPixel << "\n";
+    file << "algorithm: " << algorithm << "\n";
     file << "\n";
     
     // Mode
-    file << "mode: ";
-    switch (mode) {
-        case RenderingMode::SEQUENTIAL: file << "sequential"; break;
-        case RenderingMode::PARALLEL: file << "parallel"; break;
-    }
+    file << "mode: " << mode << "\n";
     file << "\n";
     
     // Acceleration
-    file << "acceleration: ";
-    switch (acceleration) {
-        case AccelerationStructure::NONE: file << "none"; break;
-        case AccelerationStructure::KDTREE: file << "kdtree"; break;
-        case AccelerationStructure::BVH: file << "bvh"; break;
-    }
+    file << "acceleration: " << acceleration << "\n";
     file << "\n\n";
     
     // Parallel config
     file << "# Parallel rendering settings\n";
-    file << "region_type: ";
-    switch (regionType) {
-        case RegionType::PIXEL: file << "pixel"; break;
-        case RegionType::LINE: file << "line"; break;
-        case RegionType::COLUMN: file << "column"; break;
-        case RegionType::RECTANGLE: file << "rectangle"; break;
-    }
+    file << "region_type: " << regionType << "\n";
     file << "\n";
     
     file << "region_size: " << regionSize << "\n";
     file << "num_threads: " << numThreads << "\n";
     
-    file << "queue_type: ";
-    switch (queueType) {
-        case QueueType::STD_QUEUE: file << "std_queue"; break;
-        case QueueType::LOCK_FREE_QUEUE: file << "lock_free_queue"; break;
-        case QueueType::WORK_STEALING: file << "work_stealing"; break;
-    }
-    file << "\n\n";
+    file << "queue_type: " << queueType << "\n";
+    file << "\n";
     
     // Photon mapping
     file << "# Photon mapping settings\n";
     file << "k_photons: " << kPhotons << "\n";
-    file << "radius: " << radius << "\n";
+    file << "radius: " << radius << "\n\n";
+    
     
     std::cout << "Render config saved to: " << filename << std::endl;
 }

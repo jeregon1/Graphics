@@ -118,7 +118,6 @@ class Sphere : public Object3D {
 public:
     Point center;
     float radius;
-    float inclinacion, azimut;
 
     Sphere(const Point& base, const float& radius, const Material& material) : 
         Object3D(material), center(base), radius(radius) {}

@@ -79,26 +79,15 @@ private:
  */
 class ParallelRenderer {
 private:
-    RenderConfig config_;
     std::unique_ptr<TaskQueue> taskQueue_;
     
     // Worker thread function
     void workerThread(const PinholeCamera& camera, const Scene& scene, 
-                     unsigned samplesPerPixel, std::vector<RGB>& pixels,
+                     std::vector<RGB>& pixels,
                      int width, int height, std::atomic<int>& completedTasks);
 
 public:
-    explicit ParallelRenderer(const RenderConfig& config = RenderConfig());
 
-    // Unified render method picks algorithm from config.algorithm
-    Image render(const PinholeCamera& camera, const Scene& scene,
-                 unsigned samplesPerPixel, const RenderConfig& cfg);
-
-    // Configuration
-    void setConfig(const RenderConfig& config) { config_ = config; }
-    const RenderConfig& getConfig() const { return config_; }
-    
-    // Statistics
     struct RenderStats {
         double renderTime;
         int numTasks;
@@ -106,15 +95,11 @@ public:
         RegionType regionType;
         int regionSize;
     };
-    
-    RenderStats getLastRenderStats() const { return lastStats_; }
 
+    static Image render(const PinholeCamera& camera, const Scene& scene, const RenderConfig& cfg, RenderStats* stats = nullptr);
+    
 private:
     mutable RenderStats lastStats_;
-    // Generic parallel runner
-    Image runParallel(const PinholeCamera& camera, const Scene& scene,
-                     unsigned samplesPerPixel,
-                     const RenderConfig& cfg) const;
 };
 
 /**
@@ -131,8 +116,6 @@ public:
 class RenderBenchmark {
 public:
     static void benchmarkConfigurations(const PinholeCamera& camera, const Scene& scene,
-                                       const std::vector<RenderConfig>& configs,
-                                       unsigned samplesPerPixel = 4);
-    static RenderConfig findOptimalConfig(const PinholeCamera& camera, const Scene& scene,
-                                         unsigned samplesPerPixel = 4);
+                                       const std::vector<RenderConfig>& configs);
+    static RenderConfig findOptimalConfig(const PinholeCamera& camera, const Scene& scene);
 };

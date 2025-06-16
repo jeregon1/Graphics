@@ -9,24 +9,23 @@
 namespace {
     template<typename PerRayColorFunc>
     RGB samplePixelColor(const PinholeCamera& camera, const Scene& scene,
-                        float x, float y, unsigned samples, const RenderConfig& config,
+                        float x, float y, const RenderConfig& config,
                         PerRayColorFunc perRayColor) {
         RGB accumulatedColor(0, 0, 0);
         
-        for (unsigned i = 0; i < samples; i++) {
+        for (unsigned i = 0; i < config.samplesPerPixel; i++) {
             float x_offset = x + (rand0_1() - 0.5f) * camera.getPixelSizeX();
             float y_offset = y + (rand0_1() - 0.5f) * camera.getPixelSizeY();
             Ray ray = camera.generateRay(x_offset, y_offset);
             accumulatedColor += perRayColor(ray, scene, config);
         }
-        return accumulatedColor / samples;
+        return accumulatedColor / config.samplesPerPixel;
     }
 }
 
 RGB RayTracingStrategy::calculatePixelColor(const PinholeCamera& camera, const Scene& scene,
-                                           float x, float y, unsigned samples,
-                                           const RenderConfig& config) const {
-    return samplePixelColor(camera, scene, x, y, samples, config,
+                                           float x, float y, const RenderConfig& config) const {
+    return samplePixelColor(camera, scene, x, y, config,
         [&camera](const Ray& ray, const Scene& scene, const RenderConfig&) {
             return camera.traceRay(ray, scene);
         }
@@ -34,9 +33,8 @@ RGB RayTracingStrategy::calculatePixelColor(const PinholeCamera& camera, const S
 }
 
 RGB PathTracingStrategy::calculatePixelColor(const PinholeCamera& camera, const Scene& scene,
-                                            float x, float y, unsigned samples,
-                                            const RenderConfig& config) const {
-    return samplePixelColor(camera, scene, x, y, samples, config,
+                                            float x, float y, const RenderConfig& config) const {
+    return samplePixelColor(camera, scene, x, y, config,
         [&camera](const Ray& ray, const Scene& scene, const RenderConfig&) {
             return camera.tracePath(ray, scene);
         }
@@ -44,9 +42,8 @@ RGB PathTracingStrategy::calculatePixelColor(const PinholeCamera& camera, const 
 }
 
 RGB PhotonMappingStrategy::calculatePixelColor(const PinholeCamera& camera, const Scene& scene,
-                                              float x, float y, unsigned samples,
-                                              const RenderConfig& config) const {
-    return samplePixelColor(camera, scene, x, y, samples, config,
+                                              float x, float y, const RenderConfig& config) const {
+    return samplePixelColor(camera, scene, x, y, config,
         [](const Ray& ray, const Scene& scene, const RenderConfig& config) {
             auto intersection = scene.intersect(ray);
             if (intersection) {

@@ -1,7 +1,7 @@
 # Render Configuration File
-# Path tracing with parallel processing
 
-algorithm: photon_mapping  # ray_tracing, path_tracing, photon_mapping
+algorithm: ray_tracing  # ray_tracing, path_tracing, photon_mapping
+samples_per_pixel: 32
 mode: parallel  # parallel, sequential
 acceleration: none  # none, bvh, grid, octree
 

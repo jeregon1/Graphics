@@ -62,8 +62,8 @@ void run_parallel_tests(int argc, char* argv[]) {
     // Test sequential rendering
     cout << "Sequential rendering...\n";
     auto start = chrono::high_resolution_clock::now();
-    RenderConfig sequentialConfig(RenderingAlgorithm::PATH_TRACING, RenderingMode::SEQUENTIAL);
-    Image sequentialImage = camera.renderPathTracing(scene, samples, sequentialConfig);
+    RenderConfig sequentialConfig(RenderingAlgorithm::PATH_TRACING, samples, RenderingMode::SEQUENTIAL);
+    Image sequentialImage = camera.renderPathTracing(scene, sequentialConfig);
     auto end = chrono::high_resolution_clock::now();
     auto sequentialTime = chrono::duration_cast<chrono::milliseconds>(end - start);
     cout << "Sequential time: " << sequentialTime.count() / 1000.0 << " seconds\n";
@@ -87,9 +87,9 @@ void run_parallel_tests(int argc, char* argv[]) {
     
     for (size_t i = 0; i < configs.size(); ++i) {
         const auto& config = configs[i];
-        ParallelRenderer renderer(config);
+        ParallelRenderer renderer;
         auto start = chrono::high_resolution_clock::now();
-        Image parallelImage = renderer.render(camera, scene, samples, RenderConfig());
+        Image parallelImage = renderer.render(camera, scene, config);
         auto end = chrono::high_resolution_clock::now();
         auto parallelTime = chrono::duration_cast<chrono::milliseconds>(end - start);
         double timeSeconds = parallelTime.count() / 1000.0;

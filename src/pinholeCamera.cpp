@@ -15,43 +15,46 @@
  * Métodos Públicos *
  ********************/
 
-PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height) 
-: origin(origin), width(width), height(height) {
+PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height, const Direction& forward) 
+                            : origin(origin), forward(forward), width(width), height(height) {
 
     float aspectRatio = static_cast<float>(width) / height;
     float halfFOV = tan(FOV * 0.5 * (M_PI / 180)); // Convert FOV to radians and then take the tangent
     halfExtentX = halfFOV;
     halfExtentY = halfExtentX / aspectRatio;
 
-    left = Direction(-1, 0, 0) * halfExtentX;
-    up = Direction(0, 1, 0) * halfExtentY;
-    forward = Direction(0, 0, 1);
+    left = Direction(1, 0, 0) * halfExtentX;
+    up = Direction(0, -1, 0) * halfExtentY;
     
     calculatePixelSizes();
 }
 
 // Main unified render method
-Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel, 
-                           const RenderConfig& config) const {
-    auto strategy = StrategyFactory::createStrategy(config.algorithm);
+Image PinholeCamera::render(const Scene& scene, const RenderConfig& config) const {
+    std::vector<RGB> pixels(height * width);
     if (config.mode == RenderingMode::PARALLEL) {
-        ParallelRenderer renderer(config);
-        return renderer.render(*this, scene, samplesPerPixel, config);
+        return ParallelRenderer::render(*this, scene, config);
     } else {
-        std::vector<RGB> pixels(height * width);
-        for (int y = 0; y < height; y++) {
-            float normalizedY = ((static_cast<float>(y) - (height / 2.0f)) / (height / 2.0f)) * halfExtentY;
-            for (int x = 0; x < width; x++) {
-                float normalizedX = ((static_cast<float>(x) - (width / 2.0f)) / (width / 2.0f)) * halfExtentX;
-                RGB pixelColor = strategy->calculatePixelColor(*this, scene, normalizedX, normalizedY, samplesPerPixel, config);
-                pixels[y * width + x] = pixelColor;
-            }
-        }
-        // pixels[width * (height/2) + width/2] = RGB(1, 0, 0); // Mark the center pixel as red for debugging
+        renderRegion(pixels, scene, config); // Renders whole image
         return Image(width, height, pixels);
     }
 }
 
+void PinholeCamera::renderRegion(std::vector<RGB>& pixels, const Scene& scene, const RenderConfig& config, 
+                                 int startY, int startX, int endY, int endX) const {
+    auto strategy = StrategyFactory::createStrategy(config.algorithm);
+    endY = (endY == -1) ? height : endY;
+    endX = (endX == -1) ? width : endX;
+    
+    for (int y = startY; y < endY; y++) {
+        float normalizedY = ((static_cast<float>(y) - (height / 2.0f)) / (height / 2.0f)) * halfExtentY;
+        for (int x = startX; x < endX; x++) {
+            float normalizedX = ((static_cast<float>(x) - (width / 2.0f)) / (width / 2.0f)) * halfExtentX;
+            
+            pixels[y * width + x] = strategy->calculatePixelColor(*this, scene, normalizedX, normalizedY, config);
+        }
+    }
+}
 
 RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     // Find the closest intersection of the ray with the scene

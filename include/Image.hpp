@@ -22,7 +22,7 @@ public:
    std::vector<RGB> pixels;
 
    Image() = default;
-   constexpr Image(int width, int height) noexcept 
+   Image(int width, int height) noexcept 
          : width(width), height(height) {}
 
    Image(int width, int height, std::vector<RGB> pixels) noexcept
