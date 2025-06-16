@@ -8,6 +8,7 @@
 #include "kernel.hpp"
 #include "object3D.hpp"
 #include "rendering_strategy.hpp"
+#include <iomanip>
 
 class Scene;
 
@@ -16,7 +17,7 @@ public:
     PinholeCamera(const Point& origin = Point(0,0,-3), const int FOV = 50, const int width = 256, const int height = 256, const Direction& forward = Direction(0, 0, 1));
 
     PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
-        : origin(origin), left(left), up(up), forward(forward), width(width), height(height), halfExtentX(left.mod()), halfExtentY(up.mod())
+                 : origin(origin), left(left), up(up), forward(forward.normalize()), width(width), height(height), halfExtentX(left.mod()), halfExtentY(up.mod())
         { calculatePixelSizes(); }
 
     // Main unified render method
@@ -60,10 +61,13 @@ public:
     RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
 
     std::string toString() const {
-        return "PinholeCamera(origin: " + origin.toString() + 
-               ", FOV: " + std::to_string(getFOV()) +
-               ", forward: " + forward.toString() +
-               ", pixels: " + std::to_string(width) + "x" + std::to_string(height) + ")";
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(2);
+        oss << "PinholeCamera(origin: " << origin.toString()
+            << ", FOV: " << getFOV()
+            << ", forward: " << forward.toString()
+            << ", pixels: " << width << "x" << height << ")";
+        return oss.str();
     }
 
     friend std::ostream& operator<<(std::ostream& os, const PinholeCamera& camera) {

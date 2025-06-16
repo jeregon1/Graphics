@@ -16,7 +16,7 @@
  ********************/
 
 PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height, const Direction& forward) 
-                            : origin(origin), forward(forward), width(width), height(height) {
+                            : origin(origin), forward(forward.normalize()), width(width), height(height) {
 
     float aspectRatio = static_cast<float>(width) / height;
     float halfFOV = tan(FOV * 0.5 * (M_PI / 180)); // Convert FOV to radians and then take the tangent
