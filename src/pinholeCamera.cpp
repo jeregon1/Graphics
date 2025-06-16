@@ -16,16 +16,30 @@
  ********************/
 
 PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height, const Direction& forward) {
-
+    if (!(width > 0 && height > 0 && FOV > 0 && FOV < 180 && forward.mod() > 0.0f)) {
+        throw std::invalid_argument("Invalid camera parameters: width, height, FOV must be positive and forward vector must be non-zero.");
+    }
     float aspectRatio = static_cast<float>(width) / height;
     float halfFOV = tan(FOV * 0.5 * (M_PI / 180)); // Convert FOV to radians and then take the tangent
     halfExtentX = halfFOV;
     halfExtentY = halfExtentX / aspectRatio;
 
-    left = Direction(1, 0, 0) * halfExtentX;
-    up = Direction(0, -1, 0) * halfExtentY;
+    Direction worldUp{0, 1, 0}; // Default up direction in world coordinates
+    // Calculate the right axis as the cross product of forward and world up
+    Direction right = forward.cross(worldUp);
+    // If the forward vector is collinear with world up, we need to choose a different up vector
+    if (right.mod() < EPSILON) {
+        worldUp = Direction(0, 0, 1); // Alternative up vector
+        right = forward.cross(worldUp);
+    }
+    
+    // Calculate the up vector as the cross product of right and forward
+    Direction up_normalized = right.cross(forward).normalize();
 
-    PinholeCamera(origin, up, left, forward, width, height);
+    up = up_normalized * halfExtentY; // Up vector scaled by half extent in Y
+    left = -right.normalize() * halfExtentX; // Left vector is the negative of right scaled by half extent in X
+
+    *this = PinholeCamera(origin, up, left, forward, width, height);
 }
 
 PinholeCamera::PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
@@ -46,19 +60,18 @@ Image PinholeCamera::render(const Scene& scene, const RenderConfig& config) cons
 void PinholeCamera::renderRegion(std::vector<RGB>& pixels, const Scene& scene, const RenderConfig& config, 
                                  int startY, int startX, int endY, int endX) const {
     endY = (endY == -1) ? height : endY; // Whole column if endY is -1
-    endX = (endX == -1) ? width : endX; // Whole row if endX is -1
+    endX = (endX == -1) ?  width : endX; // Whole row if endX is -1
     
     auto strategy = StrategyFactory::createStrategy(config.algorithm);
     for (int y = startY; y < endY; y++) {
         
-        // Convert pixel y coordinate to normalized device coordinate in [-halfExtentY, halfExtentY]
+        // Normalize Y coordinate to the range [-1, 1] so that later ray generation works correctly
         // 1. (y + 0.5) centers the sample in the pixel
         // 2. Subtract (height / 2.0f) to center at image middle in the range [-height/2, height/2]
-        // 3. Divide by (height / 2.0f) to normalize to [-1, 1]
-        // 4. Multiply by halfExtentY to scale to camera's view plane
-        float normalizedY = ((static_cast<float>(y) + 0.5f - (height / 2.0f)) / (height / 2.0f)) * halfExtentY;
+        // 3. Divide by (height / 2.0f) to normalize to [-1, 1] range
+        float normalizedY = ((static_cast<float>(y) + 0.5f - (height / 2.0f)) / (height / 2.0f));
         for (int x = startX; x < endX; x++) {
-            float normalizedX = ((static_cast<float>(x) + 0.5f - (width / 2.0f)) / (width / 2.0f)) * halfExtentX;
+            float normalizedX = ((static_cast<float>(x) + 0.5f - (width / 2.0f)) / (width / 2.0f)); // Same logic for X
             
             pixels[y * width + x] = strategy->calculatePixelColor(*this, scene, normalizedX, normalizedY, config);
         }
