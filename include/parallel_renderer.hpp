@@ -18,22 +18,6 @@ class Scene;
 class PinholeCamera;
 
 /**
- * Configuration for parallelization strategies
- */
-enum class RegionType {
-    PIXEL,      // Individual pixels
-    LINE,       // Horizontal lines  
-    COLUMN,     // Vertical columns
-    RECTANGLE   // Rectangular blocks
-};
-
-enum class QueueType {
-    STD_QUEUE,          // Standard queue with mutex
-    LOCK_FREE_QUEUE,    // Future: lock-free implementation
-    WORK_STEALING       // Future: work-stealing queue
-};
-
-/**
  * Represents a work unit for rendering
  */
 struct RenderTask {

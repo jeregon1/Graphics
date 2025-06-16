@@ -1,18 +1,11 @@
 #pragma once
 
 #include <optional>
-#include <vector>
-#include <memory>
 #include <string>
-#include <list>
 #include <fstream>
-#include <sstream>
 
 #include "geometry.hpp"
 #include "RGB.hpp"
-#include "foton.hpp"
-#include "kernel.hpp"
-#include "utils.hpp"
 
 
 struct Material {
@@ -55,6 +48,17 @@ struct Material {
         return (wo * (n1 / n2) + normal * (n1 / n2 * cosThetaI - cosThetaT)).normalize();
     }
 
+    std::string toString() const {
+        std::ostringstream oss;
+        oss << "Material(diffuse: " << diffuse << ", specular: " << specular << ", transparency: " << transparency 
+            << ", isEmissive: " << (isEmissive ? "true" : "false") << ")";
+        return oss.str();
+    }
+    
+    // Equality operator for comparing materials
+    bool operator==(const Material& other) const {
+        return diffuse == other.diffuse && specular == other.specular && transparency == other.transparency && isEmissive == other.isEmissive;
+    }
 };
 
 struct Intersection {
@@ -86,8 +90,16 @@ public:
 
     Object3D(const Material& material) : material(material) {}
 
-    virtual std::string toString() const = 0;
     virtual std::optional<Intersection> intersect(const Ray& ray) const = 0;   
+    
+    // Accessor for material
+    const Material& getMaterial() const { return material; }
+
+    virtual std::string toString() const = 0;
+    friend std::ostream& operator<<(std::ostream& os, const Object3D& obj) {
+        os << obj.toString();
+        return os;
+    }
 };
 
 class PointLight {
@@ -100,33 +112,6 @@ public:
 
     std::string toString() const;
 
-};
-
-class Scene {
-public:
-
-    Scene() = default;
-    Scene(const RGB& backgroundColor) : backgroundColor(backgroundColor) {}
-
-    std::vector<std::shared_ptr<Object3D>> objects;
-    std::vector<std::shared_ptr<PointLight>> lights;
-    RGB backgroundColor = RGB(0, 0, 0); // Color de fondo por defecto
-
-    void addObject(const std::shared_ptr<Object3D>& object);
-    void addLight(const std::shared_ptr<PointLight>& light);
-    std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
-    
-    RGB calculateDirectLight(const Point& p) const;
-    MapaFotones generarMapaFotones(int nPaths, bool save, double sigma = 0.0f) const;
-    void reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& fotones, std::list<Foton>& causticos, bool esCaustico, bool save = false, double sigma = 0.0f) const;
-    RGB ecuacionRenderFotones(Point x, Direction wo, Material material, Direction n, MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma = 0.0f) const;
-    RGB estimacionSiguienteEvento(Point point, Direction wo, Material material, Direction n, double sigma) const;
- 
-    void sortObjectsByDistanceToCamera(const Point& cameraPosition); // No implementado
-    std::string toString() const;
-
-    // Simple YAML-like scene loader (no external libs)
-    static Scene fromYAML(const std::string& filename); // Declaration only
 };
 
 class Sphere : public Object3D {
@@ -147,7 +132,7 @@ class Plane : public Object3D {
 public:
 
     Direction normal;
-    int distance;
+    int distance; // Distance from the origin to the plane along the normal vector
 
     Plane(const Direction& normal, const Material& material, const int distance = 1) :
         Object3D(material), normal(normal.normalize()), distance(distance) {}
@@ -169,6 +154,10 @@ public:
         Object3D(material), a(a), b(b), c(c), normal((b - a).cross(c - a).normalize()) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
+
+    Point centroid() const {
+        return Point((a.x + b.x + c.x) / 3.0f, (a.y + b.y + c.y) / 3.0f, (a.z + b.z + c.z) / 3.0f);
+    }
 
     std::string toString() const;
 };
@@ -201,44 +190,4 @@ public:
     std::string toString() const;
 };
 
-// Ellipsoid, disk
-
-// Implementation of Scene::fromYAML
-inline Scene Scene::fromYAML(const std::string& filename) {
-    Scene scene;
-    std::ifstream file(filename);
-    std::string line;
-    Material currentMaterial;
-    while (std::getline(file, line)) {
-        // Trim whitespace
-        size_t first = line.find_first_not_of(" \\t\\r\\n");
-        if (first == std::string::npos) continue; // skip empty/whitespace lines
-        line = line.substr(first);
-        if (line.empty()) continue;
-        std::istringstream iss(line);
-        std::string keyword;
-        iss >> keyword;
-        if (keyword == "background:") {
-            float r, g, b;
-            iss >> r >> g >> b;
-            scene.backgroundColor = RGB(r, g, b);
-        } else if (keyword == "material:") {
-            float r, g, b;
-            iss >> r >> g >> b;
-            currentMaterial = Material(RGB(r, g, b), RGB(0,0,0));
-        } else if (keyword == "sphere:") {
-            float x, y, z, radius;
-            iss >> x >> y >> z >> radius;
-            scene.addObject(std::make_shared<Sphere>(Point(x, y, z), radius, currentMaterial));
-        } else if (keyword == "plane:") {
-            float nx, ny, nz, d;
-            iss >> nx >> ny >> nz >> d;
-            scene.addObject(std::make_shared<Plane>(Direction(nx, ny, nz), currentMaterial, (int)d));
-        } else if (keyword == "light:") {
-            float x, y, z, r, g, b;
-            iss >> x >> y >> z >> r >> g >> b;
-            scene.addLight(std::make_shared<PointLight>(Point(x, y, z), RGB(r, g, b)));
-        }
-    }
-    return scene;
-}
+// Ellipsoid, disk?

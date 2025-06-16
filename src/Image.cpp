@@ -137,7 +137,6 @@ bool Image::writePPM(const std::string& path) const noexcept {
         }
         file << "\n";
     }
-    std::cout << "Image written to " << path << std::endl;
     file.close();
     return true;
 }

@@ -1,0 +1,16 @@
+# Render Configuration File
+# Path tracing with parallel processing
+
+algorithm: photon_mapping  # ray_tracing, path_tracing, photon_mapping
+mode: parallel  # parallel, sequential
+acceleration: none  # none, bvh, grid, octree
+
+# Parallel rendering settings (used when mode is parallel)
+region_type: column  # pixel, line, column, rectangle
+region_size: 8
+num_threads: 4
+queue_type: std_queue  # std_queue
+
+# Photon mapping settings (used when algorithm is photon_mapping)
+k_photons: 50
+radius: 0.1

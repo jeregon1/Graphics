@@ -171,7 +171,7 @@ Image ParallelRenderer::runParallel(
     std::vector<std::thread> workers;
 
     for (int i = 0; i < cfg.numThreads; ++i) {
-        workers.emplace_back([&, width, height]() {
+        workers.emplace_back([&taskQueue, &strategy, &camera, &scene, &pixels, &cfg, width, height, samplesPerPixel]() {
             RenderTask task(0, 0, 0, 0);
 
             while (taskQueue->pop(task)) {

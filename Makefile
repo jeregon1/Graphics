@@ -41,7 +41,7 @@ build/test_intersect: test/test_intersect.cpp $(LIB_OBJS)
 build/test_parallel: test/test_parallel.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-build/test_yaml: test/test_yaml_scene.cpp $(LIB_OBJS)
+build/test_yaml: test/test_yaml.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Build the unified test executable

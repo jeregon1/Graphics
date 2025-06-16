@@ -4,7 +4,8 @@
 #include "../include/parallel_renderer.hpp"
 #include "../include/rendering_strategy.hpp"
 #include "../include/utils.hpp"
-#include "constants.hpp"
+#include "../include/scene.hpp"
+#include "../include/constants.hpp"
 #include <vector>
 #include <fstream>
 #include <random>
@@ -19,12 +20,14 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
 
     float aspectRatio = static_cast<float>(width) / height;
     float halfFOV = tan(FOV * 0.5 * (M_PI / 180)); // Convert FOV to radians and then take the tangent
-    float halfWidth = halfFOV;
-    float halfHeight = halfWidth / aspectRatio;
+    halfExtentX = halfFOV;
+    halfExtentY = halfExtentX / aspectRatio;
 
-    left = Direction(-1, 0, 0) * halfWidth;
-    up = Direction(0, 1, 0) * halfHeight;
-    forward = Direction(0, 0, 3); 
+    left = Direction(-1, 0, 0) * halfExtentX;
+    up = Direction(0, 1, 0) * halfExtentY;
+    forward = Direction(0, 0, 1);
+    
+    calculatePixelSizes();
 }
 
 // Main unified render method
@@ -37,22 +40,18 @@ Image PinholeCamera::render(const Scene& scene, unsigned samplesPerPixel,
     } else {
         std::vector<RGB> pixels(height * width);
         for (int y = 0; y < height; y++) {
-            float normalizedY = static_cast<float>(y) - (height / 2.0f);
+            float normalizedY = ((static_cast<float>(y) - (height / 2.0f)) / (height / 2.0f)) * halfExtentY;
             for (int x = 0; x < width; x++) {
-                float normalizedX = static_cast<float>(x) - (width / 2.0f);
+                float normalizedX = ((static_cast<float>(x) - (width / 2.0f)) / (width / 2.0f)) * halfExtentX;
                 RGB pixelColor = strategy->calculatePixelColor(*this, scene, normalizedX, normalizedY, samplesPerPixel, config);
                 pixels[y * width + x] = pixelColor;
             }
         }
+        // pixels[width * (height/2) + width/2] = RGB(1, 0, 0); // Mark the center pixel as red for debugging
         return Image(width, height, pixels);
     }
 }
 
-Ray PinholeCamera::generateRay(float x, float y) const {
-    // Calculate the direction of the ray
-    Direction direction = (left * x + up * y + forward);
-    return Ray(origin, direction.normalize());
-}
 
 RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     // Find the closest intersection of the ray with the scene
@@ -65,32 +64,31 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
         int lightAmount = scene.lights.size();
 
         // Si no hay luces en la escena, devolvemos el color del material
-        if (lightAmount == 0) {
+        if (lightAmount == 0)
             return intersection->material.diffuse;
-        }
 
         // Iteramos por cada una de las luces de la escena
         for (int i = 0; i < lightAmount; i++) {
-
+ 
             PointLight* currentLight = dynamic_cast<PointLight*>(scene.lights[i].get());
+            if (!currentLight) continue; // Skip if not a point light
 
-            // TODO: Comprobar si la dirección es el sentido correcto
-            Direction obstructionDirection = (currentLight->center - intersection->point); // Dirección desde el punto de intersección hasta la luz
-            float obstructionDistance = obstructionDirection.mod(); // Evitamos colisiones con otros objetos más lejanos que la luz
-            Ray obstructionRay(intersection->point * (1+EPSILON), obstructionDirection); // Creamos el raycast para comprobar la colisión
-            auto obstruction = scene.intersect(obstructionRay, obstructionDistance);
+            Direction lightVector = (currentLight->center - intersection->point);
+            float lightDistance = lightVector.mod();
+            Direction lightDirection = lightVector.normalize();
 
-            if (obstruction) {
+            // Shadow ray with proper origin offset along normal
+            Point shadowOrigin = intersection->point + intersection->normal * EPSILON; // Offset to avoid self-intersection
+            Ray shadowRay(shadowOrigin, lightDirection);
+            auto obstruction = scene.intersect(shadowRay, lightDistance);
+
+            if (obstruction)
                 continue;
-            }
 
-            RGB powerByDistance = currentLight->light / pow(Direction(currentLight->center - intersection->point).mod(), 2);
-
+            RGB powerByDistance = currentLight->light / (lightDistance * lightDistance);
             RGB brdf = intersection->material.diffuse * (1.0f / M_PI); // Lambertian reflectance
-
-            Direction lightDirection = (currentLight->center - intersection->point).normalize();
             Direction normal = intersection->normal.normalize();
-            float cosTheta = std::max(float(0.0), normal.dot(lightDirection));
+            float cosTheta = std::max(0.0f, normal.dot(lightDirection));
 
             color += powerByDistance * brdf * cosTheta; 
             
@@ -101,30 +99,12 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     }
 }
 
-/*
- * Generates a random direction on the hemisphere defined by the normal vector.
- * This is used for path tracing to sample directions uniformly.
- */
-// https://the-last-stand.github.io/ray-tracing-practice/the_rest_of_your_life/generating_random_directions/
-Direction randomCosineDirection(const Direction& normal) {
-    float r1 = 2 * M_PI * rand0_1();
-    float r2 = rand0_1();
-    float r2s = sqrt(r2);
 
-    // Base ortonormal
-    Direction w = normal;
-    // Vectores perpendiculares a w
-    Direction u = ((fabs(w.x) > 0.1 ? Direction(0,1,0) : Direction(1,0,0)).cross(w)).normalize();
-    Direction v = w.cross(u);
-
-    return (u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1 - r2)).normalize();
-}
 
 RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth) const {
     
-    if (depth > 20) { // Caso base: Máximo número de rebotes
+    if (depth > 20) // Caso base: Máximo número de rebotes
         return RGB(0, 0, 0);
-    }
 
     // Se intersecta el rayo con la escena
     // Si no hay intersección, devolvemos el color de fondo

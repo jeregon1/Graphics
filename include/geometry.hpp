@@ -17,7 +17,6 @@ public:
     const float& operator[](int index) const;
 
     virtual std::string toString() const;
-
     friend std::ostream& operator<<(std::ostream& os, const Coordinate& c);
 };
 
@@ -38,7 +37,7 @@ public:
 
 class Direction : public Coordinate {
 public:
-    Direction(float x = 0, float y = 0, float z = 0);
+    Direction(float x = 1, float y = 0, float z = 0);
 
     Direction operator+(const Direction& other) const;
     Direction operator-(const Direction& other) const;

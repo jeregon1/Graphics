@@ -12,10 +12,10 @@
 #include <algorithm>
 #include <cmath>
 
+#include "constants.hpp"
+
 struct RGB {
     float r, g, b;
-
-    static constexpr float tolerance = 1e-6f;
 
     constexpr RGB() noexcept : r(0), g(0), b(0) {}
     constexpr RGB(float r, float g, float b) noexcept : r(r), g(g), b(b) {}
@@ -108,9 +108,9 @@ struct RGB {
     }
 
     bool operator==(const RGB &rgb) const {
-        return abs(r - rgb.r) < tolerance 
-            && abs(g - rgb.g) < tolerance 
-            && abs(b - rgb.b) < tolerance;
+        return abs(r - rgb.r) < EPSILON 
+            && abs(g - rgb.g) < EPSILON 
+            && abs(b - rgb.b) < EPSILON;
     }
 
     bool operator!=(const RGB &rgb) const {

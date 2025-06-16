@@ -1,6 +1,8 @@
 #include "../include/rendering_strategy.hpp"
 #include "../include/pinholeCamera.hpp"
 #include "../include/object3D.hpp"
+#include "../include/scene.hpp"
+#include "../include/utils.hpp"
 #include <memory>
 
 // Helper for anti-aliased pixel color sampling
@@ -10,9 +12,10 @@ namespace {
                         float x, float y, unsigned samples, const RenderConfig& config,
                         PerRayColorFunc perRayColor) {
         RGB accumulatedColor(0, 0, 0);
+        
         for (unsigned i = 0; i < samples; i++) {
-            float x_offset = x + rand0_1();
-            float y_offset = y + rand0_1();
+            float x_offset = x + (rand0_1() - 0.5f) * camera.getPixelSizeX();
+            float y_offset = y + (rand0_1() - 0.5f) * camera.getPixelSizeY();
             Ray ray = camera.generateRay(x_offset, y_offset);
             accumulatedColor += perRayColor(ray, scene, config);
         }

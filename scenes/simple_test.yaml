@@ -1,0 +1,18 @@
+background: 0 0 0
+
+camera:
+  origin: 0 0 -3
+  # left: -1 0 0
+  # up: 0 1 0
+  # forward: 0 0 1
+  fov: 50
+  pixels: 400 400
+
+#Simple white material
+material: 1 1 1
+
+# x y z radius
+sphere: 0 0 0 0.5
+
+# Bright point light close to camera: point and RGB color
+light: 0 2 -1 10 10 10

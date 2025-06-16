@@ -36,3 +36,22 @@ inline Direction muestraAleatoriaUniforme() {
 
     return Direction(x, y, z);
 }
+
+/*
+ * Generates a random direction on the hemisphere defined by the normal vector.
+ * This is used for path tracing to sample directions uniformly with cosine weighting.
+ */
+// https://the-last-stand.github.io/ray-tracing-practice/the_rest_of_your_life/generating_random_directions/
+inline Direction randomCosineDirection(const Direction& normal) {
+    float r1 = 2 * M_PI * rand0_1();
+    float r2 = rand0_1();
+    float r2s = sqrt(r2);
+
+    // Base ortonormal
+    Direction w = normal;
+    // Vectores perpendiculares a w
+    Direction u = ((fabs(w.x) > 0.1 ? Direction(0,1,0) : Direction(1,0,0)).cross(w)).normalize();
+    Direction v = w.cross(u);
+
+    return (u * cos(r1) * r2s + v * sin(r1) * r2s + w * sqrt(1 - r2)).normalize();
+}

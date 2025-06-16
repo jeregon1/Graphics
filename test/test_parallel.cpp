@@ -10,6 +10,7 @@
 #include "../include/pinholeCamera.hpp"
 #include "../include/parallel_renderer.hpp"
 #include "../include/Image.hpp"
+#include "../include/scene.hpp"
 
 using namespace std;
 
