@@ -101,7 +101,10 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     if (t < 0)
         return nullopt;
 
-    return Intersection(t, r.at(t), normal, material);
+    // Flip normal if ray hits from behind (ensure normal faces toward incoming ray)
+    Direction hitNormal = (denominator < 0) ? normal : -normal;
+
+    return Intersection(t, r.at(t), hitNormal, material);
 }
 
 float Plane::distanceTo(const Point& point) const {

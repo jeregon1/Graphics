@@ -16,9 +16,7 @@ class PinholeCamera {
 public:
     PinholeCamera(const Point& origin = Point(0,0,-3), const int FOV = 50, const int width = 256, const int height = 256, const Direction& forward = Direction(0, 0, 1));
 
-    PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
-                 : origin(origin), left(left), up(up), forward(forward.normalize()), width(width), height(height), halfExtentX(left.mod()), halfExtentY(up.mod())
-        { calculatePixelSizes(); }
+    PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height);
 
     // Main unified render method
     Image render(const Scene& scene, const RenderConfig& config = RenderConfig{}) const;

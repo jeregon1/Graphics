@@ -14,8 +14,9 @@ namespace {
         RGB accumulatedColor(0, 0, 0);
         
         for (unsigned i = 0; i < config.samplesPerPixel; i++) {
-            float x_offset = x + rand0_1() * camera.getPixelSizeX();
-            float y_offset = y + rand0_1() * camera.getPixelSizeY();
+            
+            float x_offset = x + (rand0_1() - 0.5f)*camera.getPixelSizeX();
+            float y_offset = y + (rand0_1() - 0.5f)*camera.getPixelSizeY();
             Ray ray = camera.generateRay(x_offset, y_offset);
             accumulatedColor += perRayColor(ray, scene, config);
         }

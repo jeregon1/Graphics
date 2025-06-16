@@ -26,92 +26,27 @@ using namespace std;
  * Coordinates *
  ***************/
 
-Coordinate::Coordinate(float x, float y, float z) : x(x), y(y), z(z) {}
-
-const float& Coordinate::operator[](int index) const {
-    switch (index) {
-            case 0: return x;
-            case 1: return y;
-            case 2: return z;
-            default: throw out_of_range("Index out of range accessing Coordinate");
-        }
-}
-
 string Coordinate::toString() const {
-        ostringstream oss;
-        oss << "(" << x << ", " << y << ", " << z << ")";
-        return oss.str();
-    }
-
-ostream& operator<<(ostream& os, const Coordinate& c) {
-    return os << c.toString();
+    ostringstream oss;
+    oss << "(" << x << ", " << y << ", " << z << ")";
+    return oss.str();
 }
 
 /*********
  * Point *
  *********/
-
-Point::Point(float x, float y, float z) : Coordinate{x, y, z} {}
-
-float Point::dot(const Point& other) const {
-    return x * other.x + y * other.y + z * other.z;
-}
-
+// Defined here to avoid circular dependency with Direction
 Direction Point::operator-(const Point& p2) const {
     return Direction(x - p2.x, y - p2.y, z - p2.z);
-} 
+}
 
 Point Point::operator+(const Direction& other) const {
     return Point(x + other.x, y + other.y, z + other.z);
 }
 
-string Point::toString() const {
-    ostringstream oss;
-    oss << "Point" << Coordinate::toString();
-    return oss.str();
-}
-
-Point Point::operator*(float scalar) const {
-    return Point{x * scalar, y * scalar, z * scalar};
-}
-
 /*************
  * Direction *
  *************/
-
-Direction::Direction(float x, float y, float z) : Coordinate{x, y, z} {}
-
-Direction Direction::operator+(const Direction& other) const {
-    return Direction(x + other.x, y + other.y, z + other.z);
-}
-
-Direction Direction::operator-(const Direction& other) const {
-    return Direction(x - other.x, y - other.y, z - other.z);
-}
-
-double Direction::operator*(const Direction& other) const {
-    return x * other.x + y * other.y + z * other.z; // Dot product
-}
-
-Direction Direction::operator*(float scalar) const {
-    return Direction(x * scalar, y * scalar, z * scalar);
-}
-
-Direction Direction::operator/(float scalar) const {
-    return Direction(x / scalar, y / scalar, z / scalar);
-}
-
-Point Direction::operator+(const Point& point) const {
-    return Point(x + point.x, y + point.y, z + point.z);
-}
-
-bool Direction::operator==(const Direction& other) const {
-    return (x == other.x && y == other.y && z == other.z);
-}
-
-float Direction::mod() const {
-    return sqrt(x * x + y * y + z * z);
-}
 
 Direction Direction::normalize() const {
     float magnitude = mod();
@@ -121,16 +56,6 @@ Direction Direction::normalize() const {
         // Alternative: return Direction(0, 0, 0); // Return zero vector
     }
     return Direction(x / magnitude, y / magnitude, z / magnitude);
-}
-
-float Direction::dot(const Direction& other) const {
-    return x * other.x + y * other.y + z * other.z;
-}
-
-Direction Direction::cross(const Direction& other) const {
-    return Direction(y * other.z - z * other.y, 
-                        z * other.x - x * other.z, 
-                        x * other.y - y * other.x);
 }
 
 /*************

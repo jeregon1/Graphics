@@ -15,8 +15,7 @@
  * Métodos Públicos *
  ********************/
 
-PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height, const Direction& forward) 
-                            : origin(origin), forward(forward.normalize()), width(width), height(height) {
+PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height, const Direction& forward) {
 
     float aspectRatio = static_cast<float>(width) / height;
     float halfFOV = tan(FOV * 0.5 * (M_PI / 180)); // Convert FOV to radians and then take the tangent
@@ -25,9 +24,13 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
 
     left = Direction(1, 0, 0) * halfExtentX;
     up = Direction(0, -1, 0) * halfExtentY;
-    
-    calculatePixelSizes();
+
+    PinholeCamera(origin, up, left, forward, width, height);
 }
+
+PinholeCamera::PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
+                            : origin(origin), left(left), up(up), forward(forward), width(width), height(height), halfExtentX(left.mod()), halfExtentY(up.mod())
+    { calculatePixelSizes(); }
 
 // Main unified render method
 Image PinholeCamera::render(const Scene& scene, const RenderConfig& config) const {
@@ -42,14 +45,20 @@ Image PinholeCamera::render(const Scene& scene, const RenderConfig& config) cons
 
 void PinholeCamera::renderRegion(std::vector<RGB>& pixels, const Scene& scene, const RenderConfig& config, 
                                  int startY, int startX, int endY, int endX) const {
-    auto strategy = StrategyFactory::createStrategy(config.algorithm);
-    endY = (endY == -1) ? height : endY;
-    endX = (endX == -1) ? width : endX;
+    endY = (endY == -1) ? height : endY; // Whole column if endY is -1
+    endX = (endX == -1) ? width : endX; // Whole row if endX is -1
     
+    auto strategy = StrategyFactory::createStrategy(config.algorithm);
     for (int y = startY; y < endY; y++) {
-        float normalizedY = ((static_cast<float>(y) - (height / 2.0f)) / (height / 2.0f)) * halfExtentY;
+        
+        // Convert pixel y coordinate to normalized device coordinate in [-halfExtentY, halfExtentY]
+        // 1. (y + 0.5) centers the sample in the pixel
+        // 2. Subtract (height / 2.0f) to center at image middle in the range [-height/2, height/2]
+        // 3. Divide by (height / 2.0f) to normalize to [-1, 1]
+        // 4. Multiply by halfExtentY to scale to camera's view plane
+        float normalizedY = ((static_cast<float>(y) + 0.5f - (height / 2.0f)) / (height / 2.0f)) * halfExtentY;
         for (int x = startX; x < endX; x++) {
-            float normalizedX = ((static_cast<float>(x) - (width / 2.0f)) / (width / 2.0f)) * halfExtentX;
+            float normalizedX = ((static_cast<float>(x) + 0.5f - (width / 2.0f)) / (width / 2.0f)) * halfExtentX;
             
             pixels[y * width + x] = strategy->calculatePixelColor(*this, scene, normalizedX, normalizedY, config);
         }
