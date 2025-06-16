@@ -24,7 +24,7 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
     halfExtentX = halfFOV;
     halfExtentY = halfExtentX / aspectRatio;
 
-    Direction worldUp{0, 1, 0}; // Default up direction in world coordinates
+    Direction worldUp{0, -1, 0}; // Default up direction in world coordinates (down because PPM writes row 0 at the top)
     // Calculate the right axis as the cross product of forward and world up
     Direction right = forward.cross(worldUp);
     // If the forward vector is collinear with world up, we need to choose a different up vector
