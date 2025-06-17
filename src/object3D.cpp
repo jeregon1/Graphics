@@ -179,51 +179,66 @@ string Triangle::toString() const {
 
 optional<Intersection> Cone::intersect(const Ray& ray) const {
     const float EPS = 1e-8f;
-    
-    // Transform ray to cone's local coordinate system
-    // Assume cone axis is along positive Y, with tip at (0, height, 0)
-    Direction co = ray.origin - base;
-    
-    // Cone equation: x² + z² = (radius * (height - y) / height)²
-    // Rearranging: x² + z² - (radius² * (height - y)² / height²) = 0
-    
-    float k = radius / height;
-    k = k * k;
-    
-    float a = ray.direction.x * ray.direction.x + ray.direction.z * ray.direction.z - k * ray.direction.y * ray.direction.y;
-    float b = 2.0f * (co.x * ray.direction.x + co.z * ray.direction.z - k * (height - co.y) * (-ray.direction.y));
-    float c = co.x * co.x + co.z * co.z - k * (height - co.y) * (height - co.y);
 
-    float discriminant = b * b - 4.0f * a * c;
+    // Build orthonormal basis from cone axis
+    Direction w = axis.normalize();
+    Direction tmp = fabs(w.x) < 0.9f ? Direction(1,0,0) : Direction(0,1,0);
+    Direction u = w.cross(tmp).normalize();
+    Direction v = w.cross(u);
 
-    if (discriminant < 0) {
-        return nullopt;
+    // Transform ray to local space
+    Direction orig = ray.origin - base;
+    Point lo(orig.dot(u), orig.dot(w), orig.dot(v));
+    Direction ld(ray.direction.dot(u), ray.direction.dot(w), ray.direction.dot(v));
+
+    // Solve cone intersection in local coords: x²+z² - k*(h - y)² = 0
+    float k2 = (radius/height) * (radius/height);
+    float a = ld.x*ld.x + ld.z*ld.z - k2 * ld.y*ld.y;
+    float b = 2.0f * (lo.x*ld.x + lo.z*ld.z + k2*(height - lo.y)*ld.y);
+    float c = lo.x*lo.x + lo.z*lo.z - k2 * (height - lo.y)*(height - lo.y);
+
+    // Compute intersection with base cap (y=0)
+    float t_base = -lo.y / ld.y;
+    bool hitBase = false;
+    if (fabs(ld.y) > EPS && t_base > EPS) {
+        Point bp(lo.x + ld.x*t_base, 0, lo.z + ld.z*t_base);
+        if (bp.x*bp.x + bp.z*bp.z <= radius*radius) {
+            hitBase = true;
+        }
     }
 
-    float sqrt_discriminant = sqrt(discriminant);
-    float t1 = (-b - sqrt_discriminant) / (2.0f * a);
-    float t2 = (-b + sqrt_discriminant) / (2.0f * a);
-
-    // Choose the closest positive intersection
-    float t = (t1 > EPS) ? t1 : t2;
-    if (t <= EPS) {
-        return nullopt;
+    float disc = b*b - 4.0f*a*c;
+    float t_side = -1.0f;
+    if (disc >= 0) {
+        float sqrt_disc = sqrt(disc);
+        float t0 = (-b - sqrt_disc) / (2.0f * a);
+        float t1 = (-b + sqrt_disc) / (2.0f * a);
+        float tCandidate = (t0 > EPS ? t0 : t1);
+        if (tCandidate > EPS) {
+            Point lp(lo.x + ld.x*tCandidate, lo.y + ld.y*tCandidate, lo.z + ld.z*tCandidate);
+            if (lp.y >= 0 && lp.y <= height) {
+                t_side = tCandidate;
+            }
+        }
     }
 
-    Point intersectionPoint = ray.at(t);
-    Direction localPoint = intersectionPoint - base;
-    
-    // Check if intersection is within cone bounds (0 <= y <= height)
-    if (localPoint.y < 0 || localPoint.y > height) {
-        return nullopt;
+    // Choose nearest valid intersection
+    if (hitBase && (t_side < EPS || t_base < t_side)) {
+        Point hitPoint = ray.at(t_base);
+        Direction normal = -w; // base cap normal
+        return Intersection(t_base, hitPoint, normal, material);
+    }
+    if (t_side > EPS) {
+        // curved surface normal
+        Point lp = Point(lo.x + ld.x*t_side, lo.y + ld.y*t_side, lo.z + ld.z*t_side);
+        Direction ln(lp.x, k2 * (height - lp.y), lp.z);
+        ln = ln.normalize();
+        Direction normal = u * ln.x + w * ln.y + v * ln.z;
+        Point hitPoint = ray.at(t_side);
+        return Intersection(t_side, hitPoint, normal, material);
     }
 
-    // Calculate normal at intersection point
-    // For a cone, normal at (x, y, z) is (x, -radius²/height, z) normalized
-    float normalY = -radius * radius / height;
-    Direction normal = Direction(localPoint.x, normalY, localPoint.z).normalize();
-    
-    return Intersection(t, intersectionPoint, normal, material);
+    return nullopt;
 }
 
 string Cone::toString() const {

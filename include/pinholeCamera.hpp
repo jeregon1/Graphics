@@ -9,6 +9,7 @@
 #include "object3D.hpp"
 #include "rendering_strategy.hpp"
 #include <iomanip>
+#include <atomic>
 
 class Scene;
 
@@ -49,8 +50,11 @@ public:
     float getHalfExtentY() const { return halfExtentY; }
     float getPixelSizeX() const { return pixelSizeX; }
     float getPixelSizeY() const { return pixelSizeY; }
+    
+    // Pixel counter method
+    void showProgressIfNeeded(bool verbose) const;
 
-    // Public methods for strategies to acces
+    // Public methods for strategies to access
     Ray generateRay(float x, float y) const {
         Direction direction = forward + left * x + up * y;
         return Ray(origin, direction.normalize());

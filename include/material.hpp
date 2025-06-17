@@ -5,6 +5,7 @@
 #include "geometry.hpp"
 
 #include <optional>
+#include <iomanip>
 
 class Direction;
 
@@ -98,6 +99,7 @@ struct Material {
 
     std::string toString() const {
         std::ostringstream oss;
+        oss << std::fixed << std::setprecision(3);
         oss << "Material(diffuse: " << diffuse 
             << ", specular: " << specular 
             << ", transmittance: " << transmittance 

@@ -119,29 +119,41 @@ void reinhard(Image& img, float key, float Lwhite) noexcept {
 }
 
 void apply(Image& image, const RenderConfig& config) noexcept {
-    switch (config.toneMapping) {
-        case ToneMappingType::CLAMP:
-            clamp(image, config.toneMappingMax);
-            break;
-        case ToneMappingType::EQUALIZATION:
-            equalization(image);
-            break;
-        case ToneMappingType::EQUALIZATION_CLAMP:
-            equalizationClamp(image, config.toneMappingMax);
-            break;
-        case ToneMappingType::GAMMA:
-            gamma(image, config.toneMappingGamma);
-            break;
-        case ToneMappingType::CLAMP_GAMMA:
-            clampGamma(image, config.toneMappingMax, config.toneMappingGamma);
-            break;
-        case ToneMappingType::REINHARD:
-            reinhard(image, config.toneMappingKey, config.toneMappingLwhite);
-            break;
-        case ToneMappingType::NONE:
-        default:
-            break;
-    }
+   switch (config.toneMapping) {
+      case ToneMappingType::CLAMP:
+         clamp(image, config.toneMappingMax);
+         if (config.verbose)
+            std::cout << "Tone mapping: CLAMP with max value " << config.toneMappingMax << std::endl;
+         break;
+      case ToneMappingType::EQUALIZATION:
+         equalization(image);
+         if (config.verbose)
+            std::cout << "Tone mapping: EQUALIZATION" << std::endl;
+         break;
+      case ToneMappingType::EQUALIZATION_CLAMP:
+         equalizationClamp(image, config.toneMappingMax);
+         if (config.verbose)
+            std::cout << "Tone mapping: EQUALIZATION_CLAMP with max value " << config.toneMappingMax << std::endl;
+         break;
+      case ToneMappingType::GAMMA:
+         gamma(image, config.toneMappingGamma);
+         if (config.verbose)
+            std::cout << "Tone mapping: GAMMA with value " << config.toneMappingGamma << std::endl;
+         break;
+      case ToneMappingType::CLAMP_GAMMA:
+         clampGamma(image, config.toneMappingMax, config.toneMappingGamma);
+         if (config.verbose)
+            std::cout << "Tone mapping: CLAMP_GAMMA with max value " << config.toneMappingMax << " and gamma value " << config.toneMappingGamma << std::endl;
+         break;
+      case ToneMappingType::REINHARD:
+         reinhard(image, config.toneMappingKey, config.toneMappingLwhite);
+         if (config.verbose)
+            std::cout << "Tone mapping: REINHARD with key value " << config.toneMappingKey << " and Lwhite value " << config.toneMappingLwhite << std::endl;
+         break;
+      case ToneMappingType::NONE:
+      default:
+         break;
+   }
 }
 
 } // namespace ToneMapping

@@ -360,124 +360,130 @@ Scene& Scene::defaultScene() {
     return scene;
 }
 
+
 // YAML parsing helper functions
-namespace {
-    Material parseMaterial(std::istringstream& iss, std::ifstream& file) {
-        
-        // Try to read simple format first (RGB values)
-        float r, g, b;
-        if (iss >> r >> g >> b) {
-            return Material(RGB(r,g,b));
+auto parseConeOrCylinder = [](std::ifstream& file, Point& base, Direction& axis, float& radius, float& height) {
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos || line[first] == '#') continue;
+        if (first == 0) {
+            file.seekg(-(long)line.length() - 1, std::ios::cur);
+            break;
         }
-        
-        Material material;
-        // Complex format with properties
-        std::string line;
-        while (std::getline(file, line)) {
-            size_t first = line.find_first_not_of(" \t");
-            if (first == std::string::npos || line[first] == '#') continue;
-            
-            // Check if this line belongs to another section
-            if (first == 0) {
-                // Put the line back by seeking
-                file.seekg(-(long)line.length() - 1, std::ios::cur);
-                break;
-            }
-            
-            line = line.substr(first);
-            std::istringstream lineStream(line);
-            std::string property;
-            lineStream >> property;
-            
-            if (property == "diffuse:") {
-                float dr, dg, db;
-                if (lineStream >> dr >> dg >> db) {
-                    material.diffuse = RGB(dr, dg, db);
-                }
-            } else if (property == "specular:") {
-                float sr, sg, sb;
-                if (lineStream >> sr >> sg >> sb) {
-                    material.specular = RGB(sr, sg, sb);
-                }
-            } else if (property == "transmittance:") {
-                float tr, tg, tb;
-                if (lineStream >> tr >> tg >> tb) {
-                    material.transmittance = RGB(tr, tg, tb);
-                }
-            } else if (property == "emission:") {
-                float er, eg, eb;
-                if (lineStream >> er >> eg >> eb) {
-                    material.emission = RGB(er, eg, eb);
-                }
-            }
+        line = line.substr(first);
+        std::istringstream lineStream(line);
+        std::string property;
+        lineStream >> property;
+        if (property == "base:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) base = Point(x, y, z);
+        } else if (property == "axis:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) axis = Direction(x, y, z);
+        } else if (property == "radius:") {
+            lineStream >> radius;
+        } else if (property == "height:") {
+            lineStream >> height;
         }
-        material.normalize(); // Normalize the material properties
-        return material;
     }
-    
-    PinholeCamera parseCamera(std::ifstream& file) {
-        Point origin(0, 0, -3);
-        Direction left(-1, 0, 0);
-        Direction up(0, 1, 0);
-        Direction forward(0, 0, 1);
-        int width = 512, height = 512;
-        int fov = -1; // -1 indicates FOV not set
-        
-        std::string line;
-        while (std::getline(file, line)) {
-            size_t first = line.find_first_not_of(" \t");
-            if (first == std::string::npos || line[first] == '#') continue;
-            
-            // Check if this line belongs to another section
-            if (first == 0) {
-                // Put the line back by seeking
-                file.seekg(-(long)line.length() - 1, std::ios::cur);
-                break;
+};
+
+auto parseMaterial = [](std::istringstream& iss, std::ifstream& file) -> Material {
+    // Try to read simple format first (RGB values)
+    float r, g, b;
+    if (iss >> r >> g >> b) {
+        return Material(RGB(r,g,b));
+    }
+    Material material;
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos || line[first] == '#') continue;
+        if (first == 0) {
+            file.seekg(-(long)line.length() - 1, std::ios::cur);
+            break;
+        }
+        line = line.substr(first);
+        std::istringstream lineStream(line);
+        std::string property;
+        lineStream >> property;
+        if (property == "diffuse:") {
+            float dr, dg, db;
+            if (lineStream >> dr >> dg >> db) {
+                material.diffuse = RGB(dr, dg, db);
             }
-            
-            line = line.substr(first);
-            std::istringstream lineStream(line);
-            std::string property;
-            lineStream >> property;
-            
-            if (property == "origin:") {
-                float x, y, z;
-                if (lineStream >> x >> y >> z) {
-                    origin = Point(x, y, z);
-                }
-            } else if (property == "fov:") {
-                if (lineStream >> fov) {
-                    // FOV value read successfully
-                }
-            } else if (property == "left:") {
-                float x, y, z;
-                if (lineStream >> x >> y >> z) {
-                    left = Direction(x, y, z);
-                }
-            } else if (property == "up:") {
-                float x, y, z;
-                if (lineStream >> x >> y >> z) {
-                    up = Direction(x, y, z);
-                }
-            } else if (property == "forward:") {
-                float x, y, z;
-                if (lineStream >> x >> y >> z) {
-                    forward = Direction(x, y, z);
-                }
-            } else if (property == "pixels:") {
-                if (lineStream >> width >> height) {
-                    // Successfully read both values
-                }
+        } else if (property == "specular:") {
+            float s;
+            if (lineStream >> s) {
+                material.specular = RGB(s, s, s);
+            }
+        } else if (property == "transmittance:") {
+            float t;
+            if (lineStream >> t) {
+                material.transmittance = RGB(t, t, t);
+            }
+        } else if (property == "emission:") {
+            float er, eg, eb;
+            if (lineStream >> er >> eg >> eb) {
+                material.emission = RGB(er, eg, eb);
             }
         }
-        
-        // If FOV is set, use FOV constructor
-        if (fov != -1)
-            return PinholeCamera(origin, fov, width, height, forward);
-        else
-            return PinholeCamera(origin, up, left, forward, width, height);
     }
-}
+    material.normalize();
+    return material;
+};
+
+auto parseCamera = [](std::ifstream& file) -> PinholeCamera {
+    Point origin(0, 0, -3);
+    Direction left(-1, 0, 0);
+    Direction up(0, 1, 0);
+    Direction forward(0, 0, 1);
+    int width = 512, height = 512;
+    int fov = -1;
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos || line[first] == '#') continue;
+        if (first == 0) {
+            file.seekg(-(long)line.length() - 1, std::ios::cur);
+            break;
+        }
+        line = line.substr(first);
+        std::istringstream lineStream(line);
+        std::string property;
+        lineStream >> property;
+        if (property == "origin:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) {
+                origin = Point(x, y, z);
+            }
+        } else if (property == "fov:") {
+            if (lineStream >> fov) {}
+        } else if (property == "left:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) {
+                left = Direction(x, y, z);
+            }
+        } else if (property == "up:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) {
+                up = Direction(x, y, z);
+            }
+        } else if (property == "forward:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) {
+                forward = Direction(x, y, z);
+            }
+        } else if (property == "pixels:") {
+            if (lineStream >> width >> height) {}
+        }
+    }
+    if (fov != -1)
+        return PinholeCamera(origin, fov, width, height, forward);
+    else
+        return PinholeCamera(origin, up, left, forward, width, height);
+};
 
 // YAML scene loader - returns scene and optional camera
 std::optional<std::pair<Scene, std::optional<PinholeCamera>>> Scene::fromYAML(const std::string& filename) {
@@ -537,7 +543,26 @@ std::optional<std::pair<Scene, std::optional<PinholeCamera>>> Scene::fromYAML(co
             scene.addLight(std::make_shared<PointLight>(Point(x, y, z), RGB(lr, lg, lb)));
             // std::cout << "DEBUG: Added light at (" << x << ", " << y << ", " << z << ") with color (" << lr << ", " << lg << ", " << lb << ")" << std::endl;
         }
-        else {
+        else if (keyword == "triangle:") {
+            float ax, ay, az, bx, by, bz, cx, cy, cz;
+            iss >> ax >> ay >> az >> bx >> by >> bz >> cx >> cy >> cz;
+            scene.addObject(std::make_shared<Triangle>(
+                Point(ax, ay, az),
+                Point(bx, by, bz),
+                Point(cx, cy, cz),
+                currentMaterial
+            ));
+        }
+        else if (keyword == "cone:" || keyword == "cylinder:") {
+            Point base;
+            Direction axis;
+            float radius = 1, height = 1;
+            parseConeOrCylinder(file, base, axis, radius, height);
+            if (keyword == "cone:")
+                scene.addObject(std::make_shared<Cone>(base, axis, radius, height, currentMaterial));
+            else
+                scene.addObject(std::make_shared<Cylinder>(base, axis, radius, height, currentMaterial));
+        } else {
             // std::cout << "DEBUG: Unknown keyword: '" << keyword << "'" << std::endl;
         }
     }
@@ -603,6 +628,26 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
                  << c.x << " " << c.y << " " << c.z << "\n";
         }
         // Add other object types as needed
+        else if (auto cone = std::dynamic_pointer_cast<Cone>(object)) {
+            Point base = cone->base;
+            Direction axis = cone->axis;
+            float radius = cone->radius;
+            float height = cone->height;
+            file << "cone: base: " << base.x << " " << base.y << " " << base.z << "\n";
+            file << "     axis: " << axis.x << " " << axis.y << " " << axis.z << "\n";
+            file << "     radius: " << radius << "\n";
+            file << "     height: " << height << "\n";
+        }
+        else if (auto cylinder = std::dynamic_pointer_cast<Cylinder>(object)) {
+            Point base = cylinder->base;
+            Direction axis = cylinder->axis;
+            float radius = cylinder->radius;
+            float height = cylinder->height;
+            file << "cylinder: base: " << base.x << " " << base.y << " " << base.z << "\n";
+            file << "       axis: " << axis.x << " " << axis.y << " " << axis.z << "\n";
+            file << "       radius: " << radius << "\n";
+            file << "       height: " << height << "\n";
+        }
         
         firstObject = false;
     }

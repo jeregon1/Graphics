@@ -134,18 +134,17 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
         float cosTheta = utils::cosTheta(normal, wi);
         Ray newRay(hitP + normal * EPSILON, wi);
         RGB indirect = tracePath(newRay, scene, depth + 1);
-        RGB f = mat.diffuse * (1.0f / M_PI);
+        RGB f = mat.diffuse / M_PI;
         return direct + indirect * f * cosTheta / pd;
 
     } else if (r < pd + ps) {
-        // Specular lobe
-        Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
-        Ray newRay(hitP + normal * EPSILON, refl);
-        RGB ret = tracePath(newRay, scene, depth + 1);
-        float cosTheta = utils::cosTheta(normal, refl);
-        RGB f = mat.specular / cosTheta;
-        return ret * f / ps;
-
+        // Specular lobe (perfect mirror)
+        Direction reflection = (ray.direction - normal * 2 * ray.direction.dot(normal))
+                        .normalize();
+        Ray newRay(hitP + normal * EPSILON, reflection);
+        RGB reflectedRadiance = tracePath(newRay, scene, depth + 1);
+        // f_specular = ks * δωr  ⇒ weight = ret * ks / p_specular
+        return reflectedRadiance * mat.specular / ps;
     } else if (r < pd + ps + pt) {
         // Direction transmit = mat.refractar(ray.direction, normal).normalize();
         // // choose offset opposite normal

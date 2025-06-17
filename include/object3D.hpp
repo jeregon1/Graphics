@@ -47,8 +47,7 @@ public:
 
     virtual std::string toString() const = 0;
     friend std::ostream& operator<<(std::ostream& os, const Object3D& obj) {
-        os << obj.toString();
-        return os;
+        return os << obj.toString();
     }
 };
 
@@ -97,7 +96,7 @@ public:
 class Triangle : public Object3D {
 public:
     Point a, b, c;
-    Direction normal;
+    Direction normal; // for convenience
 
     Triangle(const Point& a, const Point& b, const Point& c, const Material& material) :
         Object3D(material), a(a), b(b), c(c), normal((b - a).cross(c - a).normalize()) {}
