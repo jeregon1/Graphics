@@ -7,13 +7,17 @@
 
 //https:projecteuclid.org/journals/annals-of-mathematical-statistics/volume-43/issue-2/Choosing-a-Point-from-the-Surface-of-a-Sphere/10.1214/aoms/1177692644.full
 
-namespace {
+namespace utils {
     static std::mt19937 rng(std::random_device{}());
     static std::uniform_real_distribution<double> dist01(0.0, 1.0);
+    
+    inline float cosTheta(const Direction& a, const Direction& b) {
+        return std::max(0.0f, a.dot(b));
+    }
 }
 
 inline double rand0_1() {
-    return dist01(rng);
+    return utils::dist01(utils::rng);
 }
 
 /* 

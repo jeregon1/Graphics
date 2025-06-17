@@ -41,7 +41,7 @@ public:
    [[nodiscard]] float max() const noexcept;
 
    [[nodiscard]] static std::optional<Image> readPPM(const std::string& path);
-   bool writePPM(const std::string& path) const noexcept;
+   bool writePPM(const std::string& path, int colorResolution = 1<<24) const noexcept;
 
    [[nodiscard]] static std::optional<Image> readBMP(const std::string& path);
    bool writeBMP(const std::string& path) const noexcept;

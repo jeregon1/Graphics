@@ -28,7 +28,7 @@ string PointLight::toString() const {
     ostringstream oss;
     oss << "- PointLight:\n"
         << "  Center: " << center << "\n"
-        << "  Light: RGB(" << light.r << ", " << light.g << ", " << light.b << ")";
+        << "  Light: RGB(" << power.r << ", " << power.g << ", " << power.b << ")";
     return oss.str();
 }
  

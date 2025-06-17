@@ -38,44 +38,45 @@ optional<Intersection> Scene::intersect(const Ray& ray, const float distance) co
     return closest_intersection;
 }
 
-RGB Scene::calculateDirectLight(const Point& p) const {
-
-    RGB directLight(0, 0, 0);
-    int lightAmount = lights.size();
-
-    for (int i = 0; i < lightAmount; i++) {
-        PointLight* currentLight = dynamic_cast<PointLight*>(lights[i].get()); // Se obtiene el puntero
-        Direction lightDirection = currentLight->center - p;
-        float distanceToLight = lightDirection.mod(); // Primero calculamos la distancia a la luz
-        if (distanceToLight < EPSILON) {
-            continue; // Si la distancia es muy pequeña, no consideramos la luz
-        }
-
-        // Create a ray from the point to the light
-        Ray lightRay(p + lightDirection * EPSILON, lightDirection.normalize());
-        optional<Intersection> obstruction = intersect(lightRay, distanceToLight);
-
-        if (!obstruction) { // Si no hay obstaculos, consideramos la luz
-            RGB powerByDistance = currentLight->light / (distanceToLight * distanceToLight);
-            directLight += powerByDistance;
-        }
+RGB Scene::calculateDirectLight(const Intersection& inter) const {
+    RGB color = RGB(0, 0, 0);
+    for (const auto& light : lights) {
+        Direction lightToObjectDir = (light->center - inter.point);
+        float lightToObjectDistance = lightToObjectDir.mod();
         
+        // Check if surface faces the light
+        lightToObjectDir = lightToObjectDir.normalize();
+        float cosTheta = utils::cosTheta(inter.normal, lightToObjectDir);
+        if (cosTheta <= 0.0f) 
+            continue; // Surface faces away from light
+
+        // Shadow ray with proper origin offset along normal
+        Point shadowOrigin = inter.point + inter.normal * EPSILON; // Offset to avoid self-intersection
+        Ray shadowRay(shadowOrigin, lightToObjectDir);
+
+        bool obstruction = intersectAny(shadowRay, lightToObjectDistance);
+        if (obstruction)
+            continue;
+
+        RGB powerByDistance = light->power / (lightToObjectDistance * lightToObjectDistance);
+        // RGB brdf = inter.material.diffuse * / M_PI; // Lambertian reflectance
+        RGB brdf = inter.material.evaluateBSDF(lightToObjectDir, -shadowRay.direction, inter.normal);
+        color += powerByDistance * brdf * cosTheta; 
     }
-
-    return directLight; // Lambertian reflectance
-
+    return color;
 }
+
 
 MapaFotones Scene::generarMapaFotones(int nPaths, bool save, double sigma) const {
     list<Foton> fotones;
     double totalEmision = 0.0;
-    for (const auto& light : lights) totalEmision += light->light.max(); // Obtiene el total de emisión de todas las luces
+    for (const auto& light : lights) totalEmision += light->power.max(); // Obtiene el total de emisión de todas las luces
     for (const auto& light : lights) {
-        int numFotones = (int)(nPaths*light->light.max()/totalEmision); // Distribuye los paseos de fotones según la emisión de cada luz
+        int numFotones = (int)(nPaths*light->power.max()/totalEmision); // Distribuye los paseos de fotones según la emisión de cada luz
         for (int j = 0; j < numFotones; j++) {
             Direction d = muestraAleatoriaUniforme(); // Muestra una dirección aleatoria en el ángulo sólido
             Ray r = Ray(light->center, d);
-            RGB lightColor = light->light / numFotones; // Distribución uniforme de la luz
+            RGB lightColor = light->power / numFotones; // Distribución uniforme de la luz
             reboteFoton(r, RGB(lightColor.r*4*M_PI, lightColor.g*4*M_PI, lightColor.b*4*M_PI), fotones, fotones, save, sigma);
         }
     }
@@ -178,15 +179,15 @@ void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones,
         } 
         
         // Refracción
-        else if (probability <= material.p_diffuse + material.p_specular + material.p_transparency) { 
+        else if (probability <= material.p_diffuse + material.p_specular + material.p_transmittance) { 
             esCaustico = true;
             Direction normal = intersection->normal;
-            wi = material.refractar(wo, normal); // Funcion brdf
-            brdf = brdf * abs(wi * normal) * material.diffuse/material.p_transparency; // BRDF de refracción
+            wi = *material.refractar(wo, normal); // Funcion brdf
+            brdf = brdf * abs(wi * normal) * material.diffuse/material.p_transmittance; // BRDF de refracción
         }
 
         // Absorción
-        else if (probability > material.p_diffuse + material.p_specular + material.p_transparency) {
+        else if (probability > material.p_diffuse + material.p_specular + material.p_transmittance) {
             // Si no se cumple ninguna de las condiciones anteriores, no hacemos nada
             return;
         }
@@ -205,7 +206,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
     MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma) const {
     
     // Caso base
-    if (material.isEmissive) {
+    if (material.isEmissive()) {
         return material.diffuse;
     } 
 
@@ -217,7 +218,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
     double probability = rand0_1(); // Probabilidad aleatoria entre 0 y 1
 
     // Seguimos hasta llegar a una superficie difusa, simulando el camino del foton
-    while (probability <= material.p_diffuse + material.p_specular + material.p_transparency) {
+    while (probability <= material.p_diffuse + material.p_specular + material.p_transmittance) {
 
         if (probability <= material.p_diffuse) {
             if (wo * normal > 0.0) {
@@ -225,7 +226,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
             } 
             wo = wo - normal * 2.0f * (wo * normal); // Ecuación de reflexión
         } else { // Especular
-            wo = material.refractar(wo, normal); // Ecuación de refracción
+            wo = *material.refractar(wo, normal); // Ecuación de refracción
         }
 
         // Se maneja siguiente intersección
@@ -261,12 +262,12 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
             double coseno = Direction(-normal.x, -normal.y, -normal.z) * wi;
             if (coseno > 0.0) {
                 posFoton = f->posicion;
-                L = L + (material.diffuse / material.p_diffuse) * f->flujo
+                L += (material.diffuse / material.p_diffuse) * f->flujo
                     *kernel->evaluar((posFoton - point).mod(), radioFotonMasLejano);
             }
         }
         // Estimacion de la luz directa
-        if (!guardar) L = L + estimacionSiguienteEvento(point, wo, material, normal, sigma);
+        if (!guardar) L += estimacionSiguienteEvento(point, wo, material, normal, sigma);
     }
     return L;
 }
@@ -289,8 +290,8 @@ RGB Scene::estimacionSiguienteEvento(Point point, Direction wo, Material materia
         if (coseno > 0) {
             auto interseccion = this->intersect(Ray(lights[i]->center, Direction(-wi.x, -wi.y, -wi.z)));
             if (interseccion && interseccion->distance >= sqrt(norma) - EPSILON) {
-                if (sigma == 0.0) L = L + (fr * coseno) * (lights[i]->light / norma);
-                else L = L + (fr * coseno) * (lights[i]->light / norma) * pow(M_E, -sigma * norma);
+                if (sigma == 0.0) L = L + (fr * coseno) * (lights[i]->power / norma);
+                else L = L + (fr * coseno) * (lights[i]->power / norma) * pow(M_E, -sigma * norma);
             }
         }
     }
@@ -315,69 +316,61 @@ string Scene::toString() const {
     return oss.str();
 }
 
-void Scene::sortObjectsByDistanceToCamera(const Point& cameraPosition) {
-    std::sort(objects.begin(), objects.end(), 
-        [&cameraPosition](const std::shared_ptr<Object3D>& a, const std::shared_ptr<Object3D>& b) {
-            // Calculate distance from camera to each object
-            // For spheres, use center point; for other objects, use a representative point
-            Point pointA, pointB;
-            
-            // Get representative point for object A
-            if (auto sphere = std::dynamic_pointer_cast<Sphere>(a)) {
-                pointA = sphere->center;
-            } else if (auto plane = std::dynamic_pointer_cast<Plane>(a)) {
-                // For planes, use the closest point on the plane to the camera
-                pointA = Point(plane->normal.x, plane->normal.y, plane->normal.z) * plane->distance;
-            } else if (auto triangle = std::dynamic_pointer_cast<Triangle>(a)) {
-                // For triangles, use the centroid
-                pointA = Point((triangle->a.x + triangle->b.x + triangle->c.x) / 3.0f,
-                              (triangle->a.y + triangle->b.y + triangle->c.y) / 3.0f,
-                              (triangle->a.z + triangle->b.z + triangle->c.z) / 3.0f);
-            } else {
-                // Default case: use origin
-                pointA = Point(0, 0, 0);
-            }
-            
-            // Get representative point for object B
-            if (auto sphere = std::dynamic_pointer_cast<Sphere>(b)) {
-                pointB = sphere->center;
-            } else if (auto plane = std::dynamic_pointer_cast<Plane>(b)) {
-                // For planes, use the closest point on the plane to the camera
-                pointB = Point(plane->normal.x, plane->normal.y, plane->normal.z) * plane->distance;
-            } else if (auto triangle = std::dynamic_pointer_cast<Triangle>(b)) {
-                // For triangles, use the centroid
-                pointB = Point((triangle->a.x + triangle->b.x + triangle->c.x) / 3.0f,
-                              (triangle->a.y + triangle->b.y + triangle->c.y) / 3.0f,
-                              (triangle->a.z + triangle->b.z + triangle->c.z) / 3.0f);
-            } else {
-                // Default case: use origin
-                pointB = Point(0, 0, 0);
-            }
-            
-            // Calculate distances using mod() method
-            float distanceA = (pointA - cameraPosition).mod();
-            float distanceB = (pointB - cameraPosition).mod();
-            
-            // Sort from closest to farthest
-            return distanceA < distanceB;
-        });
+// Cornell box default scene
+Scene& Scene::defaultScene() {
+    static Scene scene = []() {
+        Scene s(RGB(0.2f, 0.2f, 0.2f)); // Default background color
+
+        // White diffuse material with small specular component (plastic-like)
+        Material whiteDiffuse = Material::createPlastic(RGB(0.8f, 0.8f, 0.8f));
+
+        // Red diffuse for left wall (purely diffuse)
+        Material redDiffuse = Material::createPurelyDiffuse(RGB(1, 0, 0));
+
+        // Green diffuse for right wall (purely diffuse)
+        Material greenDiffuse = Material::createPurelyDiffuse(RGB(0, 1, 0));
+
+        // Magenta for left sphere (plastic)
+        Material magentaDiffuse = Material::createPlastic(RGB(1, 0, 1));
+
+        // Blue for right sphere (dielectric glass-like)
+        Material blueDiffuse = Material::createDielectric(1.5);
+
+        // Floor (y = -1)
+        s.addObject(std::make_shared<Plane>(Direction(0, -1, 0), whiteDiffuse, 1));
+        // Ceiling (y = 1)
+        s.addObject(std::make_shared<Plane>(Direction(0, 1, 0), whiteDiffuse, 1));
+        // Left wall (x = -1)
+        s.addObject(std::make_shared<Plane>(Direction(-1, 0, 0), redDiffuse, 1));
+        // Right wall (x = 1)
+        s.addObject(std::make_shared<Plane>(Direction(1, 0, 0), greenDiffuse, 1));
+        // Back wall (z = -3)
+        s.addObject(std::make_shared<Plane>(Direction(0, 0, 1), whiteDiffuse, 1));
+
+        // Spheres
+        s.addObject(std::make_shared<Sphere>(Point(-0.5, -0.7, 0.25), 0.3, magentaDiffuse));
+        s.addObject(std::make_shared<Sphere>(Point(0.5, -0.7, -0.25), 0.3, blueDiffuse));
+
+        // Point light at ceiling center
+        s.addLight(std::make_shared<PointLight>(Point(0, 0.5, 0), RGB(10, 10, 10)));
+
+        return s;
+    }();
+    
+    return scene;
 }
 
 // YAML parsing helper functions
 namespace {
     Material parseMaterial(std::istringstream& iss, std::ifstream& file) {
-        Material material;
         
         // Try to read simple format first (RGB values)
         float r, g, b;
         if (iss >> r >> g >> b) {
-            // Simple format: material: r g b
-            material.diffuse = RGB(r, g, b);
-            material.specular = RGB(0, 0, 0);
-            material.isEmissive = false;
-            return material;
+            return Material(RGB(r,g,b));
         }
         
+        Material material;
         // Complex format with properties
         std::string line;
         while (std::getline(file, line)) {
@@ -406,14 +399,19 @@ namespace {
                 if (lineStream >> sr >> sg >> sb) {
                     material.specular = RGB(sr, sg, sb);
                 }
-            } else if (property == "isEmissive:") {
-                std::string value;
-                if (lineStream >> value) {
-                    material.isEmissive = (value == "true");
+            } else if (property == "transmittance:") {
+                float tr, tg, tb;
+                if (lineStream >> tr >> tg >> tb) {
+                    material.transmittance = RGB(tr, tg, tb);
+                }
+            } else if (property == "emission:") {
+                float er, eg, eb;
+                if (lineStream >> er >> eg >> eb) {
+                    material.emission = RGB(er, eg, eb);
                 }
             }
         }
-        
+        material.normalize(); // Normalize the material properties
         return material;
     }
     
@@ -614,7 +612,7 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
     // Lights
     for (const auto& light : lights) {
         Point pos = light->center;
-        RGB color = light->light;
+        RGB color = light->power;
         file << "light: " << pos.x << " " << pos.y << " " << pos.z << " " 
              << color.r << " " << color.g << " " << color.b << "\n";
     }

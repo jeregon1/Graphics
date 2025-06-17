@@ -83,16 +83,20 @@ std::optional<Image> Image::readPPM(const std::string& path) {
 
     std::vector<RGB> pixels(width * height);
     float maxColorRatio = memoryColorResolution / diskColorResolution;
-    for (int i = 0; i < width * height; i++) {
-        file >> pixels[i];
-        pixels[i] *= maxColorRatio;
+    // for (int i = 0; i < height*width; i++) {
+    // }
+    for (int i = height - 1; i >= 0; i--) { // Write from top row (height-1) to bottom row (0)
+        for (int j = i* width; j < (i+1)*width; j++) {
+            file >> pixels[j];
+            pixels[j] *= maxColorRatio;
+        }
     }
 
     file.close();
     return Image(width, height, std::move(pixels));
 }
 
-bool Image::writePPM(const std::string& path) const noexcept {
+bool Image::writePPM(const std::string& path, int colorResolution) const noexcept {
     // If the path is not direct, get the filename for the comment in the file
     std::string filename = path;
     size_t found = path.find_last_of("/\\");
@@ -117,22 +121,22 @@ bool Image::writePPM(const std::string& path) const noexcept {
     }
     
     file << width << " " << height << "\n";
-    file << "255" << "\n";  // Disk color resolution
+    file << colorResolution << "\n";  // Disk color resolution
     
     file << std::fixed << std::setprecision(0); // Sin decimales
-    for (int i = 0; i < height; i++) {
+    for (int i = height - 1; i >= 0; i--) { // Write from top row (height-1) to bottom row (0)
         int j = i * width;
         if (imageMax > 1.0f) {
-            // HDR image: normalize by actual max value, then scale to 255
-            file << round((pixels[j] / imageMax) * 255); // First element
+            // HDR image: normalize by actual max value, then scale to colorResolution
+            file << round((pixels[j] / imageMax) * colorResolution); // First element
             for (j = j + 1; j < (i + 1) * width; j++) {
-                file << "     " << round((pixels[j] / imageMax) * 255);
+                file << "     " << round((pixels[j] / imageMax) * colorResolution);
             }
         } else {
-            // LDR image: values are already in [0,1], just scale to 255
-            file << round(pixels[j].clamp() * 255); // First element  
+            // LDR image: values are already in [0,1], just scale to colorResolution
+            file << round(pixels[j].clamp() * colorResolution); // First element  
             for (j = j + 1; j < (i + 1) * width; j++) {
-                file << "     " << round(pixels[j].clamp() * 255);
+                file << "     " << round(pixels[j].clamp() * colorResolution);
             }
         }
         file << "\n";

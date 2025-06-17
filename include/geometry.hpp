@@ -47,6 +47,7 @@ public:
     }
     
     Point operator+(const Direction& other) const;
+    Point operator-(const Direction& other) const;
     
     std::string toString() const override {
         std::ostringstream oss;

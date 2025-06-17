@@ -1,6 +1,7 @@
 #pragma once
 
 #include "foton.hpp"
+#include "toneMapping.hpp"
 #include <optional>
 
 // Forward declarations
@@ -37,6 +38,16 @@ enum class AccelerationStructure {
     BVH             // Future: Bounding Volume Hierarchy
 };
 
+enum class ToneMappingType {
+    NONE,
+    CLAMP,
+    EQUALIZATION,
+    EQUALIZATION_CLAMP,
+    GAMMA,
+    CLAMP_GAMMA,
+    REINHARD
+};
+
 // Simple array-based toString functions
 inline const char* toString(RenderingAlgorithm alg) {
     static const char* names[] = {"ray_tracing", "path_tracing", "photon_mapping"};
@@ -63,6 +74,11 @@ inline const char* toString(AccelerationStructure acc) {
     return names[static_cast<int>(acc)];
 }
 
+inline const char* toString(ToneMappingType type) {
+    static const char* names[] = {"none", "clamp", "equalization", "equalization_clamp", "gamma", "clamp_gamma", "reinhard"};
+    return names[static_cast<int>(type)];
+}
+
 // Operator<< overloads for enums
 inline std::ostream& operator<<(std::ostream& os, RenderingAlgorithm alg) {
     return os << toString(alg);
@@ -82,6 +98,10 @@ inline std::ostream& operator<<(std::ostream& os, QueueType type) {
 
 inline std::ostream& operator<<(std::ostream& os, AccelerationStructure acc) {
     return os << toString(acc);
+}
+
+inline std::ostream& operator<<(std::ostream& os, ToneMappingType type) {
+    return os << toString(type);
 }
 
 
@@ -104,6 +124,14 @@ struct RenderConfig {
 
     // Additional rendering parameters
     unsigned samplesPerPixel = 4;
+    bool verbose = false; // Progress bar display
+    
+    // Tone mapping configuration
+    ToneMappingType toneMapping = ToneMappingType::NONE;
+    float toneMappingMax = DEFAULT_TONE_MAPPING_MAX;      // For clamp operations
+    float toneMappingGamma = DEFAULT_TONE_MAPPING_GAMMA;  // For gamma operations
+    float toneMappingKey = DEFAULT_TONE_MAPPING_KEY;       // For Reinhard
+    float toneMappingLwhite = DEFAULT_TONE_MAPPING_LWHITE;// For Reinhard
 
     // Constructors for convenience
     RenderConfig(RenderingAlgorithm alg = RenderingAlgorithm::RAY_TRACING, unsigned samplesPerPixel = 4, RenderingMode mode = RenderingMode::PARALLEL) 
@@ -127,6 +155,8 @@ struct RenderConfig {
                ", numThreads: " + std::to_string(numThreads) +
                ", queueType: " + ::toString(queueType) +
                ", samplesPerPixel: " + std::to_string(samplesPerPixel) +
+               ", toneMapping: " + ::toString(toneMapping) +
+               ", verbose: " + (verbose ? "true" : "false") +
                ")";
     }
     

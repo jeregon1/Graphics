@@ -1,16 +1,23 @@
 # Render Configuration File
 
-algorithm: ray_tracing  # ray_tracing, path_tracing, photon_mapping
-samples_per_pixel: 32
+algorithm: path_tracing  # ray_tracing, path_tracing, photon_mapping
+samples_per_pixel: 20
 mode: parallel  # parallel, sequential
 acceleration: none  # none, bvh, grid, octree
 
 # Parallel rendering settings (used when mode is parallel)
 region_type: column  # pixel, line, column, rectangle
-region_size: 8
-num_threads: 4
+region_size: 32
+num_threads: 8
 queue_type: std_queue  # std_queue
 
 # Photon mapping settings (used when algorithm is photon_mapping)
 k_photons: 50
-radius: 0.1
+radius: 0.5
+
+verbose: true  # Enable verbose output
+tone_mapping: gamma
+# tone_mapping_max: 1.0  # Maximum value for tone mapping
+# tone_mapping_gamma: 2.2  # Gamma value for tone mapping
+# tone_mapping_key: 0.18  # Key value for tone mapping
+# tone_mapping_lwhite: 1.0  # White level for tone mapping

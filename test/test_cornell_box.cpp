@@ -2,10 +2,10 @@
 #include <vector>
 #include <memory>
 
-#include "../include/object3D.hpp"
-#include "../include/pinholeCamera.hpp"
-#include "../include/Image.hpp"
-#include "../include/scene.hpp"
+#include "object3D.hpp"
+#include "pinholeCamera.hpp"
+#include "Image.hpp"
+#include "scene.hpp"
 
 using namespace std;
 

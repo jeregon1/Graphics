@@ -3,63 +3,13 @@
 #include <optional>
 #include <string>
 #include <fstream>
+#include <cmath>
 
 #include "geometry.hpp"
 #include "RGB.hpp"
+#include "constants.hpp"
+#include "material.hpp"
 
-
-struct Material {
-    RGB diffuse; // Color difuso
-    RGB specular; // Color especular
-    RGB transparency; // Color de transparencia (no se usa en este proyecto)
-    double p_diffuse = 0.0; // Probabilidad de difuso
-    double p_specular = 0.0; // Probabilidad de especular
-    double p_transparency = 0.0; // Probabilidad de refracción
-    double n = 1.0; // Índice de refracción (no se usa en este proyecto)
-    bool isEmissive = false; // Si es una fuente de luz
-
-    Material(const RGB& diffuse = RGB(0, 0, 0), const RGB& specular = RGB(0, 0, 0), bool isEmissive = false) :
-        diffuse(diffuse), specular(specular), transparency(RGB(0, 0, 0)), isEmissive(isEmissive) 
-        {
-            p_diffuse = diffuse.max();
-            p_specular = specular.max();
-            p_transparency = transparency.max();
-
-            double totalProbability = p_diffuse + p_specular + p_transparency;
-            if (totalProbability > 0.0) {
-                p_diffuse = 0.9 * p_diffuse / totalProbability;
-                p_specular = 0.9 * p_specular / totalProbability;
-                p_transparency = 0.9 * p_transparency / totalProbability;
-            }
-        }
-
-    Direction refractar(const Direction& wo, const Direction& normal) const {
-        // Implementación de la refracción usando la ley de Snell
-        float n1 = 1.0f; // Índice de refracción del aire
-        float n2 = n; // Índice de refracción del material 
-        float cosThetaI = -normal.dot(wo); // TODO: Porque hay un signo -
-        float sinThetaT2 = (n1 / n2) * (n1 / n2) * (1.0f - cosThetaI * cosThetaI);
-        
-        if (sinThetaT2 > 1.0f) {
-            return Direction(0, 0, 0); // Total internal reflection
-        }
-        
-        float cosThetaT = sqrt(1.0f - sinThetaT2);
-        return (wo * (n1 / n2) + normal * (n1 / n2 * cosThetaI - cosThetaT)).normalize();
-    }
-
-    std::string toString() const {
-        std::ostringstream oss;
-        oss << "Material(diffuse: " << diffuse << ", specular: " << specular << ", transparency: " << transparency 
-            << ", isEmissive: " << (isEmissive ? "true" : "false") << ")";
-        return oss.str();
-    }
-    
-    // Equality operator for comparing materials
-    bool operator==(const Material& other) const {
-        return diffuse == other.diffuse && specular == other.specular && transparency == other.transparency && isEmissive == other.isEmissive;
-    }
-};
 
 struct Intersection {
     float distance;
@@ -68,7 +18,7 @@ struct Intersection {
     Material material;
 
     Intersection(const float distance, const Point& point, const Direction& normal, const Material& material) :
-        distance(distance), point(point), normal(normal), material(material) {}
+        distance(distance), point(point), normal(normal.normalize()), material(material) {}
 };
 
 class Ray {
@@ -106,9 +56,9 @@ class PointLight {
 public:
 
     Point center;
-    RGB light;
+    RGB power;
 
-    PointLight(const Point& center, const RGB& emission) : center(center), light(emission) {}
+    PointLight(const Point& center, const RGB& emission) : center(center), power(emission) {}
 
     std::string toString() const;
 

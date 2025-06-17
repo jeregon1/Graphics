@@ -44,6 +44,10 @@ Point Point::operator+(const Direction& other) const {
     return Point(x + other.x, y + other.y, z + other.z);
 }
 
+Point Point::operator-(const Direction& other) const {
+    return Point(x - other.x, y - other.y, z - other.z);
+}
+
 /*************
  * Direction *
  *************/
@@ -53,7 +57,7 @@ Direction Direction::normalize() const {
     if (magnitude < 1e-9f) {
         // Cannot normalize a zero vector - throw exception or return zero vector
         throw invalid_argument("Cannot normalize a zero vector");
-        // Alternative: return Direction(0, 0, 0); // Return zero vector
+        // Alternative: x = y = z = 0; // Return zero vector
     }
     return Direction(x / magnitude, y / magnitude, z / magnitude);
 }

@@ -12,6 +12,7 @@
  */
 
 #include "../include/toneMapping.hpp"
+#include "../include/render_config.hpp"
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -115,6 +116,32 @@ void reinhard(Image& img, float key, float Lwhite) noexcept {
    }
    
    img.pixels = std::move(output);
+}
+
+void apply(Image& image, const RenderConfig& config) noexcept {
+    switch (config.toneMapping) {
+        case ToneMappingType::CLAMP:
+            clamp(image, config.toneMappingMax);
+            break;
+        case ToneMappingType::EQUALIZATION:
+            equalization(image);
+            break;
+        case ToneMappingType::EQUALIZATION_CLAMP:
+            equalizationClamp(image, config.toneMappingMax);
+            break;
+        case ToneMappingType::GAMMA:
+            gamma(image, config.toneMappingGamma);
+            break;
+        case ToneMappingType::CLAMP_GAMMA:
+            clampGamma(image, config.toneMappingMax, config.toneMappingGamma);
+            break;
+        case ToneMappingType::REINHARD:
+            reinhard(image, config.toneMappingKey, config.toneMappingLwhite);
+            break;
+        case ToneMappingType::NONE:
+        default:
+            break;
+    }
 }
 
 } // namespace ToneMapping

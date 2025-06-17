@@ -41,7 +41,20 @@ namespace {
         if (str == "work_stealing" || str == "WORK_STEALING") return QueueType::WORK_STEALING;
         return QueueType::STD_QUEUE; // default
     }
+    
+    ToneMappingType parseToneMapping(const std::string& str) {
+        if (str == "none" || str == "NONE") return ToneMappingType::NONE;
+        if (str == "clamp" || str == "CLAMP") return ToneMappingType::CLAMP;
+        if (str == "equalization" || str == "EQUALIZATION") return ToneMappingType::EQUALIZATION;
+        if (str == "equalization_clamp" || str == "EQUALIZATION_CLAMP") return ToneMappingType::EQUALIZATION_CLAMP;
+        if (str == "gamma" || str == "GAMMA") return ToneMappingType::GAMMA;
+        if (str == "clamp_gamma" || str == "CLAMP_GAMMA") return ToneMappingType::CLAMP_GAMMA;
+        if (str == "reinhard" || str == "REINHARD") return ToneMappingType::REINHARD;
+        return ToneMappingType::NONE; // default
+    }
 }
+
+
 
 std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) {
     std::ifstream file(filename);
@@ -94,6 +107,31 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             if (lineStream >> value) {
                 config.regionSize = value;
             }
+        } else if (key == "tone_mapping" || key == "toneMapping") {
+            std::string value;
+            if (lineStream >> value) {
+                config.toneMapping = parseToneMapping(value);
+            }
+        } else if (key == "tone_mapping_max" || key == "toneMappingMax") {
+            float value;
+            if (lineStream >> value) {
+                config.toneMappingMax = value;
+            }
+        } else if (key == "tone_mapping_gamma" || key == "toneMappingGamma") {
+            float value;
+            if (lineStream >> value) {
+                config.toneMappingGamma = value;
+            }
+        } else if (key == "tone_mapping_key" || key == "toneMappingKey") {
+            float value;
+            if (lineStream >> value) {
+                config.toneMappingKey = value;
+            }
+        } else if (key == "tone_mapping_lwhite" || key == "toneMappingLwhite") {
+            float value;
+            if (lineStream >> value) {
+                config.toneMappingLwhite = value;
+            }
         } else if (key == "num_threads") {
             int value;
             if (lineStream >> value) {
@@ -118,6 +156,16 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             unsigned value;
             if (lineStream >> value) {
                 config.samplesPerPixel = value;
+            }
+        } else if (key == "verbose") {
+            std::string value;
+            if (lineStream >> value) {
+                config.verbose = (value == "true" || value == "1");
+            }
+        } else if (key == "tone_mapping") {
+            std::string value;
+            if (lineStream >> value) {
+                config.toneMapping = parseToneMapping(value);
             }
         }
     }
@@ -162,8 +210,20 @@ void RenderConfig::saveToYAML(const std::string& filename) const {
     // Photon mapping
     file << "# Photon mapping settings\n";
     file << "k_photons: " << kPhotons << "\n";
-    file << "radius: " << radius << "\n\n";
+    file << "radius: " << radius << "\n";
+    file << "\n";
     
+    // Tone mapping
+    file << "# Tone mapping settings\n";
+    file << "tone_mapping: " << toneMapping << "\n";
+    file << "tone_mapping_max: " << toneMappingMax << "\n";
+    file << "tone_mapping_gamma: " << toneMappingGamma << "\n";
+    file << "tone_mapping_key: " << toneMappingKey << "\n";
+    file << "tone_mapping_lwhite: " << toneMappingLwhite << "\n";
+    file << "\n";
+    
+    // General settings
+    file << "verbose: " << (verbose ? "true" : "false") << "\n\n";
     
     std::cout << "Render config saved to: " << filename << std::endl;
 }

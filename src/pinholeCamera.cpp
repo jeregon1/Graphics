@@ -6,6 +6,7 @@
 #include "../include/utils.hpp"
 #include "../include/scene.hpp"
 #include "../include/constants.hpp"
+#include "../include/toneMapping.hpp"
 #include <vector>
 #include <fstream>
 #include <random>
@@ -15,7 +16,8 @@
  * Métodos Públicos *
  ********************/
 
-PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height, const Direction& forward) {
+PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width, const int height, const Direction& forward) 
+    : origin(origin), forward(forward), width(width), height(height) {
     if (!(width > 0 && height > 0 && FOV > 0 && FOV < 180 && forward.mod() > 0.0f)) {
         throw std::invalid_argument("Invalid camera parameters: width, height, FOV must be positive and forward vector must be non-zero.");
     }
@@ -24,7 +26,7 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
     halfExtentX = halfFOV;
     halfExtentY = halfExtentX / aspectRatio;
 
-    Direction worldUp{0, -1, 0}; // Default up direction in world coordinates (down because PPM writes row 0 at the top)
+    Direction worldUp{0, 1, 0}; // Default up direction in world coordinates (down because PPM writes row 0 at the top)
     // Calculate the right axis as the cross product of forward and world up
     Direction right = forward.cross(worldUp);
     // If the forward vector is collinear with world up, we need to choose a different up vector
@@ -38,8 +40,7 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
 
     up = up_normalized * halfExtentY; // Up vector scaled by half extent in Y
     left = -right.normalize() * halfExtentX; // Left vector is the negative of right scaled by half extent in X
-
-    *this = PinholeCamera(origin, up, left, forward, width, height);
+    calculatePixelSizes(); // Calculate pixel sizes based on extents
 }
 
 PinholeCamera::PinholeCamera(const Point& origin, const Direction& up, const Direction& left, const Direction& forward, int width, int height)
@@ -49,12 +50,18 @@ PinholeCamera::PinholeCamera(const Point& origin, const Direction& up, const Dir
 // Main unified render method
 Image PinholeCamera::render(const Scene& scene, const RenderConfig& config) const {
     std::vector<RGB> pixels(height * width);
+    Image image;
     if (config.mode == RenderingMode::PARALLEL) {
-        return ParallelRenderer::render(*this, scene, config);
+        image = ParallelRenderer::render(*this, scene, config);
     } else {
         renderRegion(pixels, scene, config); // Renders whole image
-        return Image(width, height, pixels);
+        image = Image(width, height, pixels);
     }
+        
+    if (config.toneMapping != ToneMappingType::NONE)
+        ToneMapping::apply(image, config);
+    
+    return image;
 }
 
 void PinholeCamera::renderRegion(std::vector<RGB>& pixels, const Scene& scene, const RenderConfig& config, 
@@ -74,6 +81,8 @@ void PinholeCamera::renderRegion(std::vector<RGB>& pixels, const Scene& scene, c
             float normalizedX = ((static_cast<float>(x) + 0.5f - (width / 2.0f)) / (width / 2.0f)); // Same logic for X
             
             pixels[y * width + x] = strategy->calculatePixelColor(*this, scene, normalizedX, normalizedY, config);
+            
+            showProgressIfNeeded(config.verbose); // Show progress if verbose mode is enabled
         }
     }
 }
@@ -82,113 +91,130 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     // Find the closest intersection of the ray with the scene
     auto intersection = scene.intersect(ray);
 
-    // Return the color of the intersected material, or black if no intersection
-    RGB color = RGB(0, 0, 0);
-    if (intersection) {
-
-        int lightAmount = scene.lights.size();
-
-        // Si no hay luces en la escena, devolvemos el color del material
-        if (lightAmount == 0)
-            return intersection->material.diffuse;
-
-        // Iteramos por cada una de las luces de la escena
-        for (int i = 0; i < lightAmount; i++) {
- 
-            PointLight* currentLight = dynamic_cast<PointLight*>(scene.lights[i].get());
-            if (!currentLight) continue; // Skip if not a point light
-
-            Direction lightVector = (currentLight->center - intersection->point);
-            float lightDistance = lightVector.mod();
-            Direction lightDirection = lightVector.normalize();
-
-            // Shadow ray with proper origin offset along normal
-            Point shadowOrigin = intersection->point + intersection->normal * EPSILON; // Offset to avoid self-intersection
-            Ray shadowRay(shadowOrigin, lightDirection);
-            auto obstruction = scene.intersect(shadowRay, lightDistance);
-
-            if (obstruction)
-                continue;
-
-            RGB powerByDistance = currentLight->light / (lightDistance * lightDistance);
-            RGB brdf = intersection->material.diffuse * (1.0f / M_PI); // Lambertian reflectance
-            Direction normal = intersection->normal.normalize();
-            float cosTheta = std::max(0.0f, normal.dot(lightDirection));
-
-            color += powerByDistance * brdf * cosTheta; 
-            
-        }
-        return color; // Return the color of the material at the intersection point
-    } else {
+    if (!intersection)
         return scene.backgroundColor; // No intersection, return background color
-    }
+    
+    // Si no hay luces en la escena, devolvemos el color del material
+    int lightAmount = scene.lights.size();
+    if (lightAmount == 0)
+        return intersection->material.diffuse;
+    
+    return scene.calculateDirectLight(*intersection); // Return the color of the material at the intersection point
 }
-
 
 
 RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth) const {
     
-    if (depth > 20) // Caso base: Máximo número de rebotes
+    if (depth > 10) // Caso base: Máximo número de rebotes
         return RGB(0, 0, 0);
 
-    // Se intersecta el rayo con la escena
-    // Si no hay intersección, devolvemos el color de fondo
-    std::optional<Intersection> intersection = scene.intersect(ray);
-    if (!intersection) {
+    auto intersection = scene.intersect(ray);
+    if (!intersection)
         return scene.backgroundColor;
-    }
 
-    // Si el material es emisivo, devolvemos su color (como una fuente de luz)
-    if (intersection->material.isEmissive) {
-        return intersection->material.diffuse;
-    }
+    const Material& mat = intersection->material;
+    if (mat.isEmissive())
+        return mat.emission;
 
-    // Cálculo de la luz directa
-    RGB directLight(0, 0, 0);
-    RGB indirectLight(1, 1, 1);
-    float diffuse = intersection->material.diffuse.max();
-    float specular = intersection->material.specular.max();
+    const Direction& normal = intersection->normal;
+    const Point& hitP = intersection->point;
 
-    if (diffuse + specular > 0.9f) {
-        diffuse = 0.9f * diffuse / (diffuse + specular);
-        specular = 0.9f * specular / (diffuse + specular);
-    }
+    // Russian roulette weights
+    float pd = mat.p_diffuse;
+    float ps = mat.p_specular;
+    float pt = mat.p_transmittance;
+    float sum = pd + ps + pt;
 
-    float randomValue = rand0_1();
-    if (randomValue < diffuse) {
-        // Si el valor aleatorio es menor que la probabilidad de difuso, devolvemos la luz directa
-        directLight = scene.calculateDirectLight(intersection->point);
-        indirectLight = indirectLight * (intersection->material.diffuse / diffuse); // Difuso
-    } else if (randomValue < diffuse + specular) {
-        // Si el valor aleatorio está entre la probabilidad de difuso y especular, devolvemos el color especular
+    float r = rand0_1() * (sum > 0 ? sum : 1.0f);
+
+    if (r < pd) {
+        // Diffuse lobe
+        RGB direct = scene.calculateDirectLight(*intersection);
+        Direction wi = randomCosineDirection(normal);
+        float cosTheta = utils::cosTheta(normal, wi);
+        Ray newRay(hitP + normal * EPSILON, wi);
+        RGB indirect = tracePath(newRay, scene, depth + 1);
+        RGB f = mat.diffuse * (1.0f / M_PI);
+        return direct + indirect * f * cosTheta / pd;
+
+    } else if (r < pd + ps) {
+        // Specular lobe
+        Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
+        Ray newRay(hitP + normal * EPSILON, refl);
+        RGB ret = tracePath(newRay, scene, depth + 1);
+        float cosTheta = utils::cosTheta(normal, refl);
+        RGB f = mat.specular / cosTheta;
+        return ret * f / ps;
+
+    } else if (r < pd + ps + pt) {
+        // Direction transmit = mat.refractar(ray.direction, normal).normalize();
+        // // choose offset opposite normal
+        // Ray newRay(hitP - normal * EPSILON, transmit);
+        // RGB ret = tracePath(newRay, scene, depth + 1);
+        // float cosTheta = utils::cosTheta(normal, transmit);
+        // RGB f = mat.transmittance / cosTheta;
+        // return ret * f / pt;
+        // Transmission lobe
+        auto transmitOpt = mat.refractar(ray.direction, normal);
         
-        // TODO: No se para que se usa esta variable
-        Direction wr = (ray.direction - intersection->normal * 2 * ray.direction.dot(intersection->normal)).normalize();
-        (void)wr; // Suppress unused variable warning
-        indirectLight = indirectLight * (intersection->material.specular / specular); // Especular
-    } else {
-        return scene.backgroundColor; // Matamos el rayo
-    }
+        // Check if refraction was successful (not total internal reflection)
+        if (!transmitOpt.has_value()) {
+            // Total internal reflection - treat as specular reflection
+            Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
+            Ray newRay(hitP + normal * EPSILON, refl);
+            RGB ret = tracePath(newRay, scene, depth + 1);
+            return ret * mat.specular / pt; // Use pt since we're in transmission branch
+        }
 
-    // Rebote indirecto: dirección aleatoria en el hemisferio de la normal
-    Direction randomDir = randomCosineDirection(intersection->normal);
-    Ray randomRay(intersection->point + randomDir * EPSILON, randomDir);
+        Direction transmit = transmitOpt->normalize();
 
-    // Ruleta rusa para terminar caminos largos
-    float survivalProbability = std::min(0.9f, intersection->material.diffuse.max());
-    if (depth >= 3 && rand0_1() > survivalProbability) {
-        return directLight;
-    }
-
-    // Recursión para el rebote indirecto
-    RGB reflectedColor = tracePath(randomRay, scene, depth + 1);
-    if (depth >= 3) {
-        reflectedColor = reflectedColor / survivalProbability;
-    }
-
-    float cosTheta = std::max(0.0f, intersection->normal.dot(randomDir));
-    RGB brdf = intersection->material.diffuse * (1.0f / M_PI);
-
-    // Suma de luz directa e indirecta
-    return directLight * brdf * cosTheta + reflectedColor;
+        // For transmission, we need to offset in the direction of transmission
+        // If ray is entering (normal pointing towards ray), offset inward
+        // If ray is exiting (normal pointing away from ray), offset outward
+        float dotProduct = ray.direction.dot(normal);
+        Direction offset = (dotProduct < 0) ? -normal * EPSILON : normal * EPSILON;
+        
+        Ray newRay(hitP + offset, transmit);
+        RGB ret = tracePath(newRay, scene, depth + 1);
+        
+        // Simple transmission without Fresnel for now
+        return ret * mat.transmittance / pt;
+    } else // absorved
+        return RGB(0, 0, 0);
 }
+
+void PinholeCamera::showProgressIfNeeded(bool verbose) const {
+    static std::atomic<size_t> renderedPixelCount{0};
+    static std::atomic<int> lastProgressShown{-1};
+
+    if (!verbose) return;
+    renderedPixelCount.fetch_add(1); // Increment
+
+    size_t total = static_cast<size_t>(width) * height;
+    int currentProgress = total > 0 ? static_cast<float>(renderedPixelCount.load()) / total * 100.0f : 0.0f;
+    int lastShown = lastProgressShown.load();
+    
+    if (currentProgress > lastShown && 
+        lastProgressShown.compare_exchange_strong(lastShown, currentProgress)) {
+        
+        std::cout << '\r' << '[';
+        int barWidth = 50;
+        int pos = barWidth * currentProgress / 100;
+        
+        for (int i = 0; i < barWidth; ++i) {
+            if (i < pos) std::cout << '=';
+            else if (i == pos) std::cout << '>';
+            else std::cout << ' ';
+        }
+        
+        std::cout << "] " << currentProgress << "%";
+        if (currentProgress >= 100) {
+            std::cout << std::endl;
+            lastProgressShown.store(-1); // Reset for next render
+            renderedPixelCount.store(0); // Reset counter at start of render
+        } else {
+            std::cout.flush();
+        }
+    }
+}
+
