@@ -91,7 +91,7 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     float denominator = normal.dot(r.direction);
     
     // If the ray is parallel to the plane, there is no intersection
-    if (abs(denominator) < EPSILON)
+    if (abs(denominator) < EPS)
         return nullopt;
 
     Point base = Point(normal.x, normal.y, normal.z) * distance; // Point of the plane
@@ -178,64 +178,75 @@ string Triangle::toString() const {
  ********/
 
 optional<Intersection> Cone::intersect(const Ray& ray) const {
-    const float EPS = 1e-8f;
-
-    // Build orthonormal basis from cone axis
+    
+    // 1) Build orthonormal basis (u,v,w) where w = cone axis
     Direction w = axis.normalize();
     Direction tmp = fabs(w.x) < 0.9f ? Direction(1,0,0) : Direction(0,1,0);
     Direction u = w.cross(tmp).normalize();
     Direction v = w.cross(u);
 
-    // Transform ray to local space
+    // 2) Transform ray into cone-local coordinates
     Direction orig = ray.origin - base;
     Point lo(orig.dot(u), orig.dot(w), orig.dot(v));
     Direction ld(ray.direction.dot(u), ray.direction.dot(w), ray.direction.dot(v));
 
-    // Solve cone intersection in local coords: x²+z² - k*(h - y)² = 0
-    float k2 = (radius/height) * (radius/height);
-    float a = ld.x*ld.x + ld.z*ld.z - k2 * ld.y*ld.y;
-    float b = 2.0f * (lo.x*ld.x + lo.z*ld.z + k2*(height - lo.y)*ld.y);
-    float c = lo.x*lo.x + lo.z*lo.z - k2 * (height - lo.y)*(height - lo.y);
-
-    // Compute intersection with base cap (y=0)
-    float t_base = -lo.y / ld.y;
-    bool hitBase = false;
-    if (fabs(ld.y) > EPS && t_base > EPS) {
-        Point bp(lo.x + ld.x*t_base, 0, lo.z + ld.z*t_base);
-        if (bp.x*bp.x + bp.z*bp.z <= radius*radius) {
-            hitBase = true;
-        }
-    }
-
-    float disc = b*b - 4.0f*a*c;
-    float t_side = -1.0f;
-    if (disc >= 0) {
-        float sqrt_disc = sqrt(disc);
-        float t0 = (-b - sqrt_disc) / (2.0f * a);
-        float t1 = (-b + sqrt_disc) / (2.0f * a);
-        float tCandidate = (t0 > EPS ? t0 : t1);
-        if (tCandidate > EPS) {
-            Point lp(lo.x + ld.x*tCandidate, lo.y + ld.y*tCandidate, lo.z + ld.z*tCandidate);
-            if (lp.y >= 0 && lp.y <= height) {
-                t_side = tCandidate;
+    // 3) Intersect with base cap (plane y=0)
+    float t_base = -1.0f;
+    if (fabs(ld.y) > EPS) {
+        float t = -lo.y / ld.y;
+        if (t > EPS) {
+            Point p_base = lo + ld * t;
+            if (p_base.x * p_base.x + p_base.z * p_base.z <= radius * radius) {
+                t_base = t;
             }
         }
     }
 
-    // Choose nearest valid intersection
-    if (hitBase && (t_side < EPS || t_base < t_side)) {
-        Point hitPoint = ray.at(t_base);
-        Direction normal = -w; // base cap normal
-        return Intersection(t_base, hitPoint, normal, material);
+    // 4) Intersect with curved surface
+    float k2 = (radius/height)*(radius/height);
+    float a = ld.x*ld.x + ld.z*ld.z - k2*ld.y*ld.y;
+    float b = 2.0f*(lo.x*ld.x + lo.z*ld.z + k2*(height - lo.y)*ld.y);
+    float c = lo.x*lo.x + lo.z*lo.z - k2*(height - lo.y)*(height - lo.y);
+
+    float disc = b*b - 4.0f*a*c;
+    float t_side = -1.0f;
+    if (disc >= 0) {
+        float sd = sqrt(disc);
+        float t0 = (-b - sd)/(2.0f*a);
+        float t1 = (-b + sd)/(2.0f*a);
+
+        // Check both intersection points
+        for (float t_cand : {t0, t1}) {
+            if (t_cand > EPS) {
+                float y = lo.y + ld.y * t_cand;
+                if (y >= 0 && y <= height) {
+                    if (t_side < 0 || t_cand < t_side) {
+                        t_side = t_cand;
+                    }
+                }
+            }
+        }
     }
-    if (t_side > EPS) {
-        // curved surface normal
-        Point lp = Point(lo.x + ld.x*t_side, lo.y + ld.y*t_side, lo.z + ld.z*t_side);
-        Direction ln(lp.x, k2 * (height - lp.y), lp.z);
-        ln = ln.normalize();
-        Direction normal = u * ln.x + w * ln.y + v * ln.z;
-        Point hitPoint = ray.at(t_side);
-        return Intersection(t_side, hitPoint, normal, material);
+
+    // 5) Find nearest valid intersection
+    float t_hit = -1.0f;
+    Direction N_world;
+
+    if (t_base > EPS && (t_side < 0 || t_base < t_side)) {
+        t_hit = t_base;
+        N_world = -w; // Normal of base cap points away from cone
+    } else if (t_side > EPS) {
+        t_hit = t_side;
+        // Normal for curved surface
+        Point lp = lo + ld * t_hit;
+        Direction N_local = Direction(lp.x, k2 * (height - lp.y), lp.z).normalize();
+        // Transform normal back to world coordinates
+        N_world = u * N_local.x + w * N_local.y + v * N_local.z;
+    }
+
+    if (t_hit > EPS) {
+        Point P_world = ray.at(t_hit);
+        return Intersection(t_hit, P_world, N_world, material);
     }
 
     return nullopt;
@@ -257,68 +268,85 @@ string Cone::toString() const {
  *************/
 
 optional<Intersection> Cylinder::intersect(const Ray& ray) const {
-    const float EPS = 1e-8f;
-    
-    // Transform ray to cylinder's local coordinate system
-    // Assume cylinder axis is along Y direction
-    Direction co = ray.origin - base;
-    
-    // For a cylinder with axis along Y, equation is: x² + z² = radius²
-    // We only consider the x and z components for the cylindrical surface
-    
-    float a = ray.direction.x * ray.direction.x + ray.direction.z * ray.direction.z;
-    
-    // If ray is parallel to cylinder axis, no intersection with curved surface
-    if (abs(a) < EPS) {
-        return nullopt;
-    }
-    
-    float b = 2.0f * (co.x * ray.direction.x + co.z * ray.direction.z);
-    float c = co.x * co.x + co.z * co.z - radius * radius;
 
-    float discriminant = b * b - 4.0f * a * c;
+    // 1) Build orthonormal basis (u,v,w) where w is the cylinder axis
+    Direction w = axis.normalize();
+    Direction tmp = (fabs(w.x) < 0.9f) ? Direction(1, 0, 0) : Direction(0, 1, 0);
+    Direction u = w.cross(tmp).normalize();
+    Direction v = w.cross(u);
 
-    if (discriminant < 0) {
-        return nullopt;
-    }
+    // 2) Transform ray into local coordinates
+    Direction orig = ray.origin - base;
+    Point lo(orig.dot(u), orig.dot(w), orig.dot(v));
+    Direction ld(ray.direction.dot(u), ray.direction.dot(w), ray.direction.dot(v));
 
-    float sqrt_discriminant = sqrt(discriminant);
-    float t1 = (-b - sqrt_discriminant) / (2.0f * a);
-    float t2 = (-b + sqrt_discriminant) / (2.0f * a);
-
-    // Check both intersections and choose the closest valid one
-    float t = -1;
-    
-    // Check first intersection
-    if (t1 > EPS) {
-        Point testPoint = ray.at(t1);
-        Direction localPoint = testPoint - base;
-        if (localPoint.y >= 0 && localPoint.y <= height) {
-            t = t1;
+    // 3) Intersection with caps
+    float t_base = -1.0f, t_top = -1.0f;
+    if (fabs(ld.y) > EPS) { // Ray is not parallel to the caps
+        // Base cap (y=0)
+        float t0 = -lo.y / ld.y;
+        if (t0 > EPS) {
+            Point p_base = lo + ld * t0;
+            if (p_base.x * p_base.x + p_base.z * p_base.z <= radius * radius) {
+                t_base = t0;
+            }
+        }
+        // Top cap (y=height)
+        float t1 = (height - lo.y) / ld.y;
+        if (t1 > EPS) {
+            Point p_top = lo + ld * t1;
+            if (p_top.x * p_top.x + p_top.z * p_top.z <= radius * radius) {
+                t_top = t1;
+            }
         }
     }
-    
-    // Check second intersection if first wasn't valid
-    if (t < 0 && t2 > EPS) {
-        Point testPoint = ray.at(t2);
-        Direction localPoint = testPoint - base;
-        if (localPoint.y >= 0 && localPoint.y <= height) {
-            t = t2;
+
+    // 4) Intersection with curved surface (x^2 + z^2 = r^2)
+    float a = ld.x * ld.x + ld.z * ld.z;
+    float b = 2.0f * (lo.x * ld.x + lo.z * ld.z);
+    float c = lo.x * lo.x + lo.z * lo.z - radius * radius;
+    float disc = b * b - 4.0f * a * c;
+    float t_side = -1.0f;
+
+    if (disc >= 0) {
+        float sd = sqrt(disc);
+        float t0 = (-b - sd) / (2.0f * a);
+        float t1 = (-b + sd) / (2.0f * a);
+
+        for (float t_cand : {t0, t1}) {
+            if (t_cand > EPS) {
+                float y = lo.y + ld.y * t_cand;
+                if (y >= 0 && y <= height) {
+                    if (t_side < 0 || t_cand < t_side) {
+                        t_side = t_cand;
+                    }
+                }
+            }
         }
     }
-    
-    if (t <= EPS) {
-        return nullopt;
-    }
 
-    Point intersectionPoint = ray.at(t);
-    Direction localPoint = intersectionPoint - base;
+    // 5) Find the nearest valid intersection
+    float t_min = -1.0f;
+    if (t_base > EPS) t_min = t_base;
+    if (t_top > EPS && (t_min < 0 || t_top < t_min)) t_min = t_top;
+    if (t_side > EPS && (t_min < 0 || t_side < t_min)) t_min = t_side;
+
+    if (t_min < 0) return nullopt;
+
+    // 6) Determine normal and return intersection
+    Direction N_world;
+    if (t_min == t_base) {
+        N_world = -w;
+    } else if (t_min == t_top) {
+        N_world = w;
+    } else { // t_min == t_side
+        Point p_local = lo + ld * t_min;
+        Direction N_local = Direction(p_local.x, 0, p_local.z).normalize();
+        N_world = u * N_local.x + w * N_local.y + v * N_local.z;
+    }
     
-    // Calculate normal at intersection point
-    // For a cylinder, normal is perpendicular to the axis and pointing outward
-    Direction normal = Direction(localPoint.x, 0, localPoint.z).normalize();
-    
-    return Intersection(t, intersectionPoint, normal, material);
+    Point P_world = ray.at(t_min);
+    return Intersection(t_min, P_world, N_world, material);
 }
 
 string Cylinder::toString() const {

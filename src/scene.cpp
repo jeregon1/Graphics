@@ -51,7 +51,7 @@ RGB Scene::calculateDirectLight(const Intersection& inter) const {
             continue; // Surface faces away from light
 
         // Shadow ray with proper origin offset along normal
-        Point shadowOrigin = inter.point + inter.normal * EPSILON; // Offset to avoid self-intersection
+        Point shadowOrigin = inter.point + inter.normal * EPS; // Offset to avoid self-intersection
         Ray shadowRay(shadowOrigin, lightToObjectDir);
 
         bool obstruction = intersectAny(shadowRay, lightToObjectDistance);
@@ -289,7 +289,7 @@ RGB Scene::estimacionSiguienteEvento(Point point, Direction wo, Material materia
         RGB fr = material.diffuse / M_PI; // BRDF Lambertiano
         if (coseno > 0) {
             auto interseccion = this->intersect(Ray(lights[i]->center, Direction(-wi.x, -wi.y, -wi.z)));
-            if (interseccion && interseccion->distance >= sqrt(norma) - EPSILON) {
+            if (interseccion && interseccion->distance >= sqrt(norma) - EPS) {
                 if (sigma == 0.0) L = L + (fr * coseno) * (lights[i]->power / norma);
                 else L = L + (fr * coseno) * (lights[i]->power / norma) * pow(M_E, -sigma * norma);
             }

@@ -1,12 +1,12 @@
-#include "../include/pinholeCamera.hpp"
-#include "../include/object3D.hpp"
-#include "../include/Image.hpp"
-#include "../include/parallel_renderer.hpp"
-#include "../include/rendering_strategy.hpp"
-#include "../include/utils.hpp"
-#include "../include/scene.hpp"
-#include "../include/constants.hpp"
-#include "../include/toneMapping.hpp"
+#include "pinholeCamera.hpp"
+#include "object3D.hpp"
+#include "Image.hpp"
+#include "parallel_renderer.hpp"
+#include "rendering_strategy.hpp"
+#include "utils.hpp"
+#include "scene.hpp"
+#include "constants.hpp"
+#include "toneMapping.hpp"
 #include <vector>
 #include <fstream>
 #include <random>
@@ -30,7 +30,7 @@ PinholeCamera::PinholeCamera(const Point& origin, const int FOV, const int width
     // Calculate the right axis as the cross product of forward and world up
     Direction right = forward.cross(worldUp);
     // If the forward vector is collinear with world up, we need to choose a different up vector
-    if (right.mod() < EPSILON) {
+    if (right.mod() < EPS) {
         worldUp = Direction(0, 0, 1); // Alternative up vector
         right = forward.cross(worldUp);
     }
@@ -132,7 +132,7 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
         RGB direct = scene.calculateDirectLight(*intersection);
         Direction wi = randomCosineDirection(normal);
         float cosTheta = utils::cosTheta(normal, wi);
-        Ray newRay(hitP + normal * EPSILON, wi);
+        Ray newRay(hitP + normal * EPS, wi);
         RGB indirect = tracePath(newRay, scene, depth + 1);
         RGB f = mat.diffuse / M_PI;
         return direct + indirect * f * cosTheta / pd;
@@ -141,14 +141,14 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
         // Specular lobe (perfect mirror)
         Direction reflection = (ray.direction - normal * 2 * ray.direction.dot(normal))
                         .normalize();
-        Ray newRay(hitP + normal * EPSILON, reflection);
+        Ray newRay(hitP + normal * EPS, reflection);
         RGB reflectedRadiance = tracePath(newRay, scene, depth + 1);
         // f_specular = ks * δωr  ⇒ weight = ret * ks / p_specular
         return reflectedRadiance * mat.specular / ps;
     } else if (r < pd + ps + pt) {
         // Direction transmit = mat.refractar(ray.direction, normal).normalize();
         // // choose offset opposite normal
-        // Ray newRay(hitP - normal * EPSILON, transmit);
+        // Ray newRay(hitP - normal * EPS, transmit);
         // RGB ret = tracePath(newRay, scene, depth + 1);
         // float cosTheta = utils::cosTheta(normal, transmit);
         // RGB f = mat.transmittance / cosTheta;
@@ -160,7 +160,7 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
         if (!transmitOpt.has_value()) {
             // Total internal reflection - treat as specular reflection
             Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
-            Ray newRay(hitP + normal * EPSILON, refl);
+            Ray newRay(hitP + normal * EPS, refl);
             RGB ret = tracePath(newRay, scene, depth + 1);
             return ret * mat.specular / pt; // Use pt since we're in transmission branch
         }

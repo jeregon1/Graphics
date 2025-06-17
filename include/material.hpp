@@ -19,7 +19,7 @@ struct Material {
     double n = 1.0; // Índice de refracción
     RGB emission; // Le - emission (light emitted by material)
 
-    static constexpr float p_limit = 0.9f;
+    static constexpr float p_limit = 0.9;
 
     // Constructor with transparency support
     Material(const RGB& diffuse = RGB{0,0,0}, const RGB& specular = RGB{0,0,0}, const RGB& transmittance = RGB{0,0,0}, const RGB& emission = RGB{0,0,0}) :
@@ -28,7 +28,7 @@ struct Material {
         if (!isPhysicallyValid())
             throw std::invalid_argument("Invalid material properties");
         // Set default refractive index for glass if transmittance is non-zero
-        if (transmittance.max() > 0.0f) {
+        if (transmittance.max() > EPS) {
             n = 1.5; // Glass refractive index
         }
         normalize(); 
@@ -43,7 +43,7 @@ struct Material {
     bool isPhysicallyValid() const {
         return (specular.r == specular.g && specular.g == specular.b) && // Ensure specular is achromatic
                (transmittance.r == transmittance.g && transmittance.g == transmittance.b) && // Ensure transmittance is achromatic
-               !(isEmissive() && specular.max() > EPSILON);
+               !(isEmissive() && (specular.max() > EPS || transmittance.max() > EPS));
     }
 
     // Evaluate BSDF according to: fr(x,ωi,ωo) = kd(1/π) + ks(δωr(ωi))/(n·ωi) + kt(δωt(ωi))/(n·ωi)
@@ -56,22 +56,22 @@ struct Material {
     }
 
     bool isEmissive() const {
-        return emission.max() > EPSILON;
+        return emission.max() > EPS;
     }
 
     // Check if material is purely diffuse (plastic example)
     bool isPurelyDiffuse() const {
-        return specular.max() < EPSILON && transmittance.max() < EPSILON;
+        return specular.max() < EPS && transmittance.max() < EPS;
     }
 
     // Check if material is plastic (diffuse + specular, no transmittance)
     bool isPlastic() const {
-        return transmittance.max() < EPSILON && diffuse.max() > EPSILON && specular.max() > EPSILON;
+        return transmittance.max() < EPS && diffuse.max() > EPS && specular.max() > EPS;
     }
 
     // Check if material is dielectric (specular + transmittance, no diffuse)
     bool isDielectric() const {
-        return diffuse.max() < EPSILON && (specular.max() > EPSILON || transmittance.max() > EPSILON);
+        return diffuse.max() < EPS && (specular.max() > EPS || transmittance.max() > EPS);
     }
 
     // Factory methods for common material types

@@ -108,9 +108,9 @@ struct RGB {
     }
 
     bool operator==(const RGB &rgb) const {
-        return std::abs(r - rgb.r) < EPSILON 
-            && std::abs(g - rgb.g) < EPSILON 
-            && std::abs(b - rgb.b) < EPSILON;
+        return std::abs(r - rgb.r) < EPS 
+            && std::abs(g - rgb.g) < EPS 
+            && std::abs(b - rgb.b) < EPS;
     }
 
     bool operator!=(const RGB &rgb) const {
