@@ -1,4 +1,4 @@
-
+#include <algorithm>
 #include "material.hpp"
 
 void Material::normalize() {
@@ -29,32 +29,30 @@ void Material::normalize() {
 	}
 }
 
-std::optional<Direction> Material::refractar(const Direction& wo, const Direction& normal) const {
-    // Proper implementation of Snell's law with entering/exiting logic
-    float n1, n2;
-    float cosThetaI = normal.dot(wo);
-    Direction n = normal;
+// Replace existing Material::refract with robust implementation using Snell's law
+std::optional<Direction> Material::refract(const Direction& wi, const Direction& N) const {
+    float cosi = std::max(-1.0f, std::min(1.0f, wi.dot(N))); // Clamp to [-1, 1] to prevent floating point errors
+    float etai = 1.0f, etat = n;
+    Direction normal = N;
     
-    if (cosThetaI < 0) {
-        // Ray is entering the material (from air to material)
-        cosThetaI = -cosThetaI;
-        n1 = 1.0f; // Air
-        n2 = this->n; // Material
+    if (cosi < 0) {
+        // Ray entering material (air -> material)
+        cosi = -cosi;
     } else {
-        // Ray is exiting the material (from material to air)
-        n1 = this->n; // Material
-        n2 = 1.0f; // Air
-        n = -normal; // Flip normal for exiting ray
+        // Ray exiting material (material -> air)  
+        std::swap(etai, etat);
+        normal = -N;
+        // cosi is already positive
     }
     
-    float eta = n1 / n2;
-    float sinThetaT2 = eta * eta * (1.0f - cosThetaI * cosThetaI);
+    float eta = etai / etat;
+    float k = 1.0f - eta*eta * (1.0f - cosi*cosi);
     
-    if (sinThetaT2 > 1.0f)
+    if (k < 0.0f)
         return std::nullopt; // Total internal reflection
     
-    float cosThetaT = sqrt(1.0f - sinThetaT2);
-    return std::make_optional((wo * eta + n * (eta * cosThetaI - cosThetaT)));
+    Direction refr = wi * eta + normal * (eta * cosi - std::sqrt(k)); // refr = θ₁ * n + N * (θ₁ * cosi - sqrt(cos²(θ) )
+    return std::make_optional(refr.normalize());
 }
 
 RGB Material::evaluateBSDF(const Direction& wi, const Direction& wo, const Direction& normal) const {
@@ -62,7 +60,7 @@ RGB Material::evaluateBSDF(const Direction& wi, const Direction& wo, const Direc
 	RGB result(0, 0, 0);
 	
 	// Lambertian diffuse component: kd/π
-	result += diffuse * (1.0f / M_PI);
+	result += diffuse / M_PI;
 	
 	// Perfect specular reflection and transmittance (delta functions) are handled separately
 	// in path tracing through importance sampling, not direct BSDF evaluation

@@ -163,9 +163,9 @@ void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones,
             
             esCaustico = false;
             wi = muestraAleatoriaUniforme(); // Obtención de una dirección aleatoria de la hemiesfera
-            brdf = brdf * abs(wi * normal) * material.diffuse/material.p_diffuse; // BRDF difuso 
-        } 
-        
+            brdf = brdf * abs(wi * normal) * material.getDiffuse()/material.p_diffuse; // BRDF difuso
+        }
+
         // Specular
         else if (probability <= material.p_diffuse + material.p_specular) { 
             esCaustico = true;
@@ -175,15 +175,15 @@ void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones,
             } 
             // Perfect reflection: R = I - 2(I·N)N
             wi = wo - normal * (2.0f * (wo * normal));
-            brdf = brdf * abs(wi * normal) * material.specular/material.p_specular; // Specular BRDF
+            brdf = brdf * abs(wi * normal) * material.getSpecular()/material.p_specular; // Specular BRDF
         } 
         
         // Refracción
         else if (probability <= material.p_diffuse + material.p_specular + material.p_transmittance) { 
             esCaustico = true;
             Direction normal = intersection->normal;
-            wi = *material.refractar(wo, normal); // Funcion brdf
-            brdf = brdf * abs(wi * normal) * material.diffuse/material.p_transmittance; // BRDF de refracción
+            wi = *material.refract(wo, normal); // Funcion brdf
+            brdf = brdf * abs(wi * normal) * material.getDiffuse()/material.p_transmittance; // BRDF de refracción
         }
 
         // Absorción
@@ -207,7 +207,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
     
     // Caso base
     if (material.isEmissive()) {
-        return material.diffuse;
+        return material.getDiffuse();
     } 
 
     double radioFotonMasLejano = 0.0;
@@ -226,7 +226,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
             } 
             wo = wo - normal * 2.0f * (wo * normal); // Ecuación de reflexión
         } else { // Especular
-            wo = *material.refractar(wo, normal); // Ecuación de refracción
+            wo = *material.refract(wo, normal); // Ecuación de refracción
         }
 
         // Se maneja siguiente intersección
@@ -262,7 +262,7 @@ RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, D
             double coseno = Direction(-normal.x, -normal.y, -normal.z) * wi;
             if (coseno > 0.0) {
                 posFoton = f->posicion;
-                L += (material.diffuse / material.p_diffuse) * f->flujo
+                L += (material.getDiffuse() / material.p_diffuse) * f->flujo
                     *kernel->evaluar((posFoton - point).mod(), radioFotonMasLejano);
             }
         }
@@ -286,7 +286,7 @@ RGB Scene::estimacionSiguienteEvento(Point point, Direction wo, Material materia
         double norma = (lights[i]->center - point).mod();
         norma = norma * norma; // Norma al cuadrado
         double coseno = n * wi;
-        RGB fr = material.diffuse / M_PI; // BRDF Lambertiano
+        RGB fr = material.getDiffuse() / M_PI; // BRDF Lambertiano
         if (coseno > 0) {
             auto interseccion = this->intersect(Ray(lights[i]->center, Direction(-wi.x, -wi.y, -wi.z)));
             if (interseccion && interseccion->distance >= sqrt(norma) - EPS) {
@@ -411,17 +411,17 @@ auto parseMaterial = [](std::istringstream& iss, std::ifstream& file) -> Materia
         if (property == "diffuse:") {
             float dr, dg, db;
             if (lineStream >> dr >> dg >> db) {
-                material.diffuse = RGB(dr, dg, db);
+                material.setDiffuse(RGB(dr, dg, db));
             }
         } else if (property == "specular:") {
             float s;
             if (lineStream >> s) {
-                material.specular = RGB(s, s, s);
+                material.setSpecular(RGB(s, s, s));
             }
         } else if (property == "transmittance:") {
             float t;
             if (lineStream >> t) {
-                material.transmittance = RGB(t, t, t);
+                material.setTransmittance(RGB(t, t, t));
             }
         } else if (property == "emission:") {
             float er, eg, eb;
@@ -430,7 +430,6 @@ auto parseMaterial = [](std::istringstream& iss, std::ifstream& file) -> Materia
             }
         }
     }
-    material.normalize();
     return material;
 };
 
@@ -604,7 +603,7 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
         // Check if we need to output a new material
         const Material& objMaterial = object->getMaterial();
         if (firstObject || !(objMaterial == lastMaterial)) {
-            file << "material: " << objMaterial.diffuse.r << " " << objMaterial.diffuse.g << " " << objMaterial.diffuse.b << "\n";
+            file << "material: " << objMaterial.getDiffuse().r << " " << objMaterial.getDiffuse().g << " " << objMaterial.getDiffuse().b << "\n";
             lastMaterial = objMaterial;
         }
         

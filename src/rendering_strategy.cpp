@@ -54,7 +54,7 @@ RGB PhotonMappingStrategy::calculatePixelColor(const PinholeCamera& camera, cons
                         intersection->normal, *config.photonMap, config.kPhotons,
                         config.radius, false, config.kernel);
                 } else {
-                    return intersection->material.diffuse;
+                    return intersection->material.getDiffuse();
                 }
             }
 

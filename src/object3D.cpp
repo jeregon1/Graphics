@@ -51,34 +51,38 @@ optional<Intersection> Sphere::intersect(const Ray& r) const {
     Direction oc = center - r.origin;
     float tca = oc.dot(r.direction);
 
-    if (tca < 0) {
+    if (tca < 0) 
         return nullopt;
-    }
 
     float d2 = oc.dot(oc) - tca * tca;
 
-    if (d2 > radius * radius) { 
+    if (d2 > radius * radius)
         return nullopt;
-    }
 
     float thc = sqrt(radius * radius - d2);
     float t0 = tca - thc;
     float t1 = tca + thc;
 
-    if (t0 < 0 && t1 < 0) {
+    if (t0 < 0 && t1 < 0)
         return nullopt;
-    }
 
-    float t = (t0 < t1) ? t0 : t1;
+    float t = std::min(t0, t1);
 
     if (t < 0) {
-        t = (t0 > t1) ? t0 : t1;
-        if (t < 0) {
+        t = std::max(t0, t1);
+        if (t < 0)
             return nullopt;
-        }
     }
 
-    return Intersection(t, r.at(t), (r.at(t) - center).normalize(), material);
+    Point hitPoint = r.at(t);
+    Direction outwardNormal = (hitPoint - center).normalize();
+    
+    // For refraction to work correctly, normal should point toward the incoming ray
+    // If ray is inside sphere (hitting from inside), flip the normal
+    bool rayFromInside = (r.origin - center).mod() < radius;
+    Direction normal = rayFromInside ? -outwardNormal : outwardNormal;
+
+    return Intersection(t, hitPoint, normal, material);
 }
 
 
@@ -246,7 +250,9 @@ optional<Intersection> Cone::intersect(const Ray& ray) const {
 
     if (t_hit > EPS) {
         Point P_world = ray.at(t_hit);
-        return Intersection(t_hit, P_world, N_world, material);
+        Direction normal = N_world;
+        if (ray.direction.dot(normal) > 0) normal = -normal;
+        return Intersection(t_hit, P_world, normal, material);
     }
 
     return nullopt;
@@ -346,7 +352,9 @@ optional<Intersection> Cylinder::intersect(const Ray& ray) const {
     }
     
     Point P_world = ray.at(t_min);
-    return Intersection(t_min, P_world, N_world, material);
+    Direction normal = N_world;
+    if (ray.direction.dot(normal) > 0) normal = -normal;
+    return Intersection(t_min, P_world, normal, material);
 }
 
 string Cylinder::toString() const {
