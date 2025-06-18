@@ -45,6 +45,15 @@ public:
     Point operator*(float scalar) const {
         return Point{x * scalar, y * scalar, z * scalar};
     }
+
+    float operator[](int index) const {
+        switch (index) {
+            case 0: return x;
+            case 1: return y;
+            case 2: return z;
+            default: throw std::out_of_range("Index out of range accessing Point");
+        }
+    }
     
     Point operator+(const Direction& other) const;
     Point operator-(const Direction& other) const;
@@ -70,10 +79,6 @@ public:
     
     Direction operator-() const { return Direction(-x, -y, -z); } // Negation
     
-    double operator*(const Direction& other) const { // Dot product
-        return x * other.x + y * other.y + z * other.z;
-    }
-    
     Direction operator*(float scalar) const {
         return Direction(x * scalar, y * scalar, z * scalar);
     }
@@ -85,7 +90,12 @@ public:
     bool operator==(const Direction& other) const {
         return (x == other.x && y == other.y && z == other.z);
     }
-    
+
+    Direction specular(const Direction& normal) const {
+        // Reflect wo around normal
+        return (*this - normal * (2.0f * this->dot(normal))).normalize();
+    }
+
     Point operator+(const Point& point) const {
         return Point(x + point.x, y + point.y, z + point.z);
     }

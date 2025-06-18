@@ -2,7 +2,7 @@
 # Compiler
 CXX = g++
 # Compiler flags
-CXXFLAGS = -O1 -std=c++20 -Wall -Wextra -Iinclude
+CXXFLAGS =  --debug -O0 -std=c++20 -Wall -Wextra -Iinclude
 
 # Core library sources (exclude CLI programs)
 LIB_SRCS = $(filter-out src/tonemap_cli.cpp src/pathtracer_cli.cpp, $(wildcard src/*.cpp))

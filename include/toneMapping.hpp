@@ -17,6 +17,7 @@ namespace ToneMapping {
     void clamp(Image& image, float max = DEFAULT_TONE_MAPPING_MAX) noexcept;
     void equalization(Image& image, float V = 0.0f) noexcept;
     void equalizationClamp(Image& image, float max = DEFAULT_TONE_MAPPING_MAX) noexcept;
+    void equalizationGamma(Image& image, float gammaValue = DEFAULT_TONE_MAPPING_GAMMA) noexcept;
     void gamma(Image& image, float gammaValue = DEFAULT_TONE_MAPPING_GAMMA) noexcept;
     void clampGamma(Image& image, float max = DEFAULT_TONE_MAPPING_MAX, float gammaValue = DEFAULT_TONE_MAPPING_GAMMA) noexcept;
     void reinhard(Image& img, float key = DEFAULT_TONE_MAPPING_KEY, float Lwhite = DEFAULT_TONE_MAPPING_LWHITE) noexcept;

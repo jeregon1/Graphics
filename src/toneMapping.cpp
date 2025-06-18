@@ -50,6 +50,11 @@ void equalization(Image& image, float V) noexcept {
    }
 }
 
+void equalizationGamma(Image& image, float gammaValue) noexcept {
+   equalization(image);
+   gamma (image, gammaValue);
+}
+
 void equalizationClamp(Image& image, float V) noexcept {
    equalization(image, V);
    clamp(image, V);
@@ -129,6 +134,11 @@ void apply(Image& image, const RenderConfig& config) noexcept {
          equalization(image);
          if (config.verbose)
             std::cout << "Tone mapping: EQUALIZATION" << std::endl;
+         break;
+      case ToneMappingType::EQUALIZATION_GAMMA:
+         equalizationGamma(image, config.toneMappingGamma);
+         if (config.verbose)
+            std::cout << "Tone mapping: EQUALIZATION_GAMMA with gamma value " << config.toneMappingGamma << std::endl;
          break;
       case ToneMappingType::EQUALIZATION_CLAMP:
          equalizationClamp(image, config.toneMappingMax);

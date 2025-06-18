@@ -99,9 +99,8 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     if (lightAmount == 0)
         return intersection->material.getDiffuse();
 
-    return scene.calculateDirectLight(*intersection); // Return the color of the material at the intersection point
+    return scene.nextEventEstimation(*intersection); // Return the color of the material at the intersection point
 }
-
 
 RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth) const {
     
@@ -129,18 +128,17 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
 
     if (r < pd) {
         // Diffuse lobe
-        RGB direct = scene.calculateDirectLight(*intersection);
+        RGB direct = scene.nextEventEstimation(*intersection);
         Direction wi = randomCosineDirection(normal);
         float cosTheta = utils::cosTheta(normal, wi);
         Ray newRay(hitP + wi * EPS, wi);
         RGB indirect = tracePath(newRay, scene, depth + 1);
-        RGB f = mat.getDiffuse() / M_PI;
+        RGB f = mat.evaluateBSDF(wi, -ray.direction, normal); // BRDF for diffuse reflection
         return direct + indirect * f * cosTheta / pd;
 
     } else if (r < pd + ps) {
         // Specular lobe (perfect mirror)
-        Direction reflection = (ray.direction - normal * 2 * ray.direction.dot(normal))
-                        .normalize();
+        Direction reflection = ray.direction.specular(normal);
         Ray newRay(hitP + reflection * EPS, reflection);
         RGB reflectedRadiance = tracePath(newRay, scene, depth + 1);
         // f_specular = ks * δωr  ⇒ weight = ret * ks / p_specular

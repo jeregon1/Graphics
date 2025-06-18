@@ -8,7 +8,7 @@ void test_sphere_intersection() {
     Ray ray(Point(0, 0, -3), Direction(0, 0, 1));
     auto intersection = sphere.intersect(ray);
     assert(intersection.has_value());
-    assert(abs(intersection->distance - 2.0f) < EPSILON);
+    assert(abs(intersection->distance - 2.0f) < EPS);
     std::cout << "Sphere intersection test passed!" << std::endl;
 }
 
@@ -17,7 +17,7 @@ void test_plane_intersection() {
     Ray ray(Point(0, -1, 0), Direction(0, 1, 0));
     auto intersection = plane.intersect(ray);
     assert(intersection.has_value());
-    assert(abs(intersection->distance - 1.0f) < EPSILON);
+    assert(abs(intersection->distance - 1.0f) < EPS);
     std::cout << "Plane intersection test passed!" << std::endl;
 }
 
@@ -26,7 +26,7 @@ void test_triangle_intersection() {
     Ray ray(Point(0.25, 0.25, -1), Direction(0, 0, 1));
     auto intersection = triangle.intersect(ray);
     assert(intersection.has_value());
-    assert(abs(intersection->distance - 1.0f) < EPSILON);
+    assert(abs(intersection->distance - 1.0f) < EPS);
     std::cout << "Triangle intersection test passed!" << std::endl;
 }
 
@@ -35,7 +35,7 @@ void test_cone_intersection() {
     Ray ray(Point(0, 0, -3), Direction(0, 0, 1));
     auto intersection = cone.intersect(ray);
     assert(intersection.has_value());
-    assert(abs(intersection->distance - 2.0f) < EPSILON);
+    assert(abs(intersection->distance - 2.0f) < EPS);
     std::cout << "Cone intersection test passed!" << std::endl;
 }
 
@@ -44,7 +44,7 @@ void test_cylinder_intersection() {
     Ray ray(Point(0, 0, -3), Direction(0, 0, 1));
     auto intersection = cylinder.intersect(ray);
     assert(intersection.has_value());
-    assert(abs(intersection->distance - 2.0f) < EPSILON);
+    assert(abs(intersection->distance - 2.0f) < EPS);
     std::cout << "Cylinder intersection test passed!" << std::endl;
 }
 

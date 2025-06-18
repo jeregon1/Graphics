@@ -46,6 +46,7 @@ namespace {
         if (str == "none" || str == "NONE") return ToneMappingType::NONE;
         if (str == "clamp" || str == "CLAMP") return ToneMappingType::CLAMP;
         if (str == "equalization" || str == "EQUALIZATION") return ToneMappingType::EQUALIZATION;
+        if (str == "equalization_gamma" || str == "EQUALIZATION_GAMMA") return ToneMappingType::EQUALIZATION_GAMMA;
         if (str == "equalization_clamp" || str == "EQUALIZATION_CLAMP") return ToneMappingType::EQUALIZATION_CLAMP;
         if (str == "gamma" || str == "GAMMA") return ToneMappingType::GAMMA;
         if (str == "clamp_gamma" || str == "CLAMP_GAMMA") return ToneMappingType::CLAMP_GAMMA;
@@ -152,6 +153,11 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             if (lineStream >> value) {
                 config.radius = value;
             }
+        } else if (key == "n_paths" || key == "nPaths") {
+            unsigned value;
+            if (lineStream >> value) {
+                config.nPaths = value;
+            }
         } else if (key == "samples_per_pixel" || key == "samplesPerPixel") {
             unsigned value;
             if (lineStream >> value) {
@@ -211,6 +217,7 @@ void RenderConfig::saveToYAML(const std::string& filename) const {
     file << "# Photon mapping settings\n";
     file << "k_photons: " << kPhotons << "\n";
     file << "radius: " << radius << "\n";
+    file << "n_paths: " << nPaths << "\n";
     file << "\n";
     
     // Tone mapping

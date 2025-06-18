@@ -1,9 +1,12 @@
-#include "../include/rendering_strategy.hpp"
-#include "../include/pinholeCamera.hpp"
-#include "../include/object3D.hpp"
-#include "../include/scene.hpp"
-#include "../include/utils.hpp"
+#include "rendering_strategy.hpp"
+#include "pinholeCamera.hpp"
+#include "object3D.hpp"
+#include "scene.hpp"
+#include "utils.hpp"
+#include "kernel.hpp"
 #include <memory>
+#include <iostream>
+#include <mutex>
 
 // Helper for anti-aliased pixel color sampling
 namespace {
@@ -46,16 +49,23 @@ RGB PhotonMappingStrategy::calculatePixelColor(const PinholeCamera& camera, cons
                                               float x, float y, const RenderConfig& config) const {
     return samplePixelColor(camera, scene, x, y, config,
         [](const Ray& ray, const Scene& scene, const RenderConfig& config) {
-            auto intersection = scene.intersect(ray);
-            if (intersection) {
-                if (config.photonMap && config.kernel) {
-                    return scene.ecuacionRenderFotones(
-                        intersection->point, ray.direction, intersection->material,
-                        intersection->normal, *config.photonMap, config.kPhotons,
-                        config.radius, false, config.kernel);
-                } else {
-                    return intersection->material.getDiffuse();
-                }
+
+            if (auto intersection = scene.intersect(ray)) {
+                // Generate photon map on-the-fly if not provided
+                static std::once_flag photonMapFlag;
+                static MapaFotones photonMap;
+                static KernelEpanechnikov defaultKernel; // Better kernel choice
+                
+                std::call_once(photonMapFlag, [&scene, &config]() {
+                    std::cout << "Generating photon map..." << std::endl;
+                    photonMap = scene.generarMapaFotones(config.nPaths);
+                    std::cout << "Photon map generated!" << std::endl;
+                });
+                
+                MapaFotones* pMap = config.photonMap ? config.photonMap : &photonMap;
+                Kernel* kernel = config.kernel ? config.kernel : &defaultKernel;
+
+                return scene.ecuacionRenderFotones(ray.direction, *intersection, *pMap, config, *kernel);
             }
 
             return RGB(0, 0, 0);
@@ -67,10 +77,9 @@ std::unique_ptr<RenderingStrategy> StrategyFactory::createStrategy(RenderingAlgo
     switch (algorithm) {
         case RenderingAlgorithm::RAY_TRACING:
             return std::make_unique<RayTracingStrategy>();
-        case RenderingAlgorithm::PATH_TRACING:
-            return std::make_unique<PathTracingStrategy>();
         case RenderingAlgorithm::PHOTON_MAPPING:
             return std::make_unique<PhotonMappingStrategy>();
+        case RenderingAlgorithm::PATH_TRACING:
         default:
             return std::make_unique<PathTracingStrategy>();
     }

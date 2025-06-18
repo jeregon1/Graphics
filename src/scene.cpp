@@ -1,8 +1,8 @@
-#include "../include/pinholeCamera.hpp"
-#include "../include/object3D.hpp"
-#include "../include/scene.hpp"
-#include "../include/constants.hpp"
-#include "../include/utils.hpp"
+#include "pinholeCamera.hpp"
+#include "object3D.hpp"
+#include "scene.hpp"
+#include "constants.hpp"
+#include "utils.hpp"
 
 #include <vector>
 #include <memory>
@@ -38,7 +38,7 @@ optional<Intersection> Scene::intersect(const Ray& ray, const float distance) co
     return closest_intersection;
 }
 
-RGB Scene::calculateDirectLight(const Intersection& inter) const {
+RGB Scene::nextEventEstimation(const Intersection& inter) const {
     RGB color = RGB(0, 0, 0);
     for (const auto& light : lights) {
         Direction lightToObjectDir = (light->center - inter.point);
@@ -47,7 +47,7 @@ RGB Scene::calculateDirectLight(const Intersection& inter) const {
         // Check if surface faces the light
         lightToObjectDir = lightToObjectDir.normalize();
         float cosTheta = utils::cosTheta(inter.normal, lightToObjectDir);
-        if (cosTheta <= 0.0f) 
+        if (cosTheta <= 0) 
             continue; // Surface faces away from light
 
         // Shadow ray with proper origin offset along normal
@@ -59,7 +59,7 @@ RGB Scene::calculateDirectLight(const Intersection& inter) const {
             continue;
 
         RGB powerByDistance = light->power / (lightToObjectDistance * lightToObjectDistance);
-        // RGB brdf = inter.material.diffuse * / M_PI; // Lambertian reflectance
+        
         RGB brdf = inter.material.evaluateBSDF(lightToObjectDir, -shadowRay.direction, inter.normal);
         color += powerByDistance * brdf * cosTheta; 
     }
@@ -67,21 +67,47 @@ RGB Scene::calculateDirectLight(const Intersection& inter) const {
 }
 
 
-MapaFotones Scene::generarMapaFotones(int nPaths, bool save, double sigma) const {
-    list<Foton> fotones;
-    double totalEmision = 0.0;
-    for (const auto& light : lights) totalEmision += light->power.max(); // Obtiene el total de emisión de todas las luces
+MapaFotones Scene::generarMapaFotones(const int nPaths) const {
+    list<Foton> fotones;      // Regular diffuse photons
+    list<Foton> causticos;    // Caustic photons (specular/transmissive → diffuse)
+    
+    // Calculate total light emission for energy distribution
+    double totalEmision = std::accumulate(lights.begin(), lights.end(), 0.0, 
+        [](double sum, const std::shared_ptr<PointLight>& light) {
+            return sum + light->getPowerSum();
+        });
+    
     for (const auto& light : lights) {
-        int numFotones = (int)(nPaths*light->power.max()/totalEmision); // Distribuye los paseos de fotones según la emisión de cada luz
+        // Distribute photons proportionally to light power
+        int numFotones = (int)(nPaths * light->getPowerSum() / totalEmision);
+
         for (int j = 0; j < numFotones; j++) {
-            Direction d = muestraAleatoriaUniforme(); // Muestra una dirección aleatoria en el ángulo sólido
+            // Sample random direction from light (uniform sphere sampling)
+            Direction d = muestraAleatoriaUniforme();
             Ray r = Ray(light->center, d);
-            RGB lightColor = light->power / numFotones; // Distribución uniforme de la luz
-            reboteFoton(r, RGB(lightColor.r*4*M_PI, lightColor.g*4*M_PI, lightColor.b*4*M_PI), fotones, fotones, save, sigma);
+            
+            // Initial photon energy - normalized by total photons and 4π steradians
+            RGB photonFlux = light->power * 4 * M_PI / numFotones;
+            
+            // Trace photon through scene with separate lists
+            reboteFoton(r, photonFlux, fotones, causticos, false);
         }
     }
+    
+    if (fotones.empty()) {
+        std::cout << "Warning: No photons generated!" << std::endl;
+        return MapaFotones(std::list<Foton>(), PosicionEjeFoton());
+    }
+    
+    std::cout << "Generated " << fotones.size() << " regular photons and " 
+              << causticos.size() << " caustic photons" << std::endl;
+
+    // Merge caustic photons into the regular photon list
+    fotones.splice(fotones.end(), causticos);
+    
+    // For now, we'll use only regular photons (can be extended to merge or use caustics separately)
     MapaFotones mapa = construirMapaFotones(fotones);
-    return mapa;  
+    return mapa;
 }
 
 // Acceleration structure management methods
@@ -101,202 +127,188 @@ bool Scene::intersectAny(const Ray& ray, const float distance) const {
     // Fallback to linear search
     for (const auto& object : objects) {
         auto intersection = object->intersect(ray);
-        if (intersection && intersection->distance < distance) {
+        if (intersection && intersection->distance < distance)
             return true;
-        }
     }
     return false;
 }
 
-// TODO: Revisar que funcione el código
-// Estas dos imágenes generan una lista de fotones en la escena
-void Scene::reboteFoton(const Ray& ray, const RGB& light, list<Foton>& fotones, 
-            list<Foton>& causticos, bool esCaustico, bool save, double sigma) const {
-    
-    (void)save; // Suppress unused parameter warning
-    
-    // Variable initialization
-    auto intersection = this->intersect(ray);
-    bool primerRebote = true;
+// Photon random walk following professor's specifications
+void Scene::reboteFoton(Ray currentRay, RGB currentFlux, list<Foton>& fotones, 
+            list<Foton>& causticos, bool esCaustico) const {
 
-    if (!intersection) { // If no intersection, do nothing
-        return;
-    }
-
-    Direction wo = ray.direction;
-    Direction wi;
-
-    double norma = (ray.origin - intersection->point).mod();
-    norma = norma * norma;
-    RGB brdf = light/norma;
-    
-    do { // If it intersects the scene
-        // Si interseca con una luz de área, guardamos el fotón
-        /*
-        if (i.geometria->esLuzArea()) {
-            // Si se pone guardar, se guarda el fotón
-            if (guardar) {
-                Foton f = Foton(i.punto, wo, radiancia);
-                fotones.push_back(f);
-            }
-            return;
-        }
-        */
-
+    // bool firstBounce = true;
+    for (int bounce = 0; bounce < Foton::MAX_BOUNCES; bounce++) {
+        auto intersection = this->intersect(currentRay);
+        if (!intersection)
+            return; // Photon escaped scene
+        
         Material material = intersection->material;
-        double probability = rand0_1(); // Probabilidad aleatoria entre 0 y 1
+        Direction normal = intersection->normal;
         
-        // Difuso
-        if (probability <= material.p_diffuse) { 
-            Direction normal = intersection->normal;
-            if (ray.direction * normal > 0.0) {
-                normal = Direction(-normal.x, -normal.y, -normal.z); // Dirección del rayo * normal de la intersección
-            } 
-            Foton f = Foton(intersection->point, wo, brdf);
-            if (!primerRebote) {
-                if (esCaustico) {
-                    causticos.push_back(f);
-                } else {
-                    fotones.push_back(f);
-                }
-            }
+        // Ensure normal faces incoming ray
+        if (currentRay.direction.dot(normal) > 0.0)
+            normal = -normal;
+        
+        // Russian roulette for material interaction
+        double totalProb = material.p_diffuse + material.p_specular + material.p_transmittance;
+        
+        if (totalProb <= 0.0)
+            return; // No interaction possible
+        
+        double probability = rand0_1() * totalProb;  // Normalize probabilities
+        
+        Direction newDirection;
+        bool storePhoton = false;
+        RGB radiance;
+
+        if (probability <= material.p_diffuse) { // Diffuse interaction - this is where we store photons
             
-            esCaustico = false;
-            wi = muestraAleatoriaUniforme(); // Obtención de una dirección aleatoria de la hemiesfera
-            brdf = brdf * abs(wi * normal) * material.getDiffuse()/material.p_diffuse; // BRDF difuso
+            newDirection = randomCosineDirection(normal);
+            RGB brdfWeight = material.evaluateBSDF(newDirection, -currentRay.direction, normal);
+            storePhoton = true;
+            radiance = brdfWeight * utils::cosTheta(normal, newDirection);
+            // Don't change caustic flag - if it was caustic, it stays caustic
         }
-
-        // Specular
-        else if (probability <= material.p_diffuse + material.p_specular) { 
-            esCaustico = true;
-            Direction normal = intersection->normal;
-            if (ray.direction * normal > 0.0) {
-                normal = Direction(-normal.x, -normal.y, -normal.z); // Direction of ray * intersection normal
-            } 
-            // Perfect reflection: R = I - 2(I·N)N
-            wi = wo - normal * (2.0f * (wo * normal));
-            brdf = brdf * abs(wi * normal) * material.getSpecular()/material.p_specular; // Specular BRDF
-        } 
-        
-        // Refracción
-        else if (probability <= material.p_diffuse + material.p_specular + material.p_transmittance) { 
-            esCaustico = true;
-            Direction normal = intersection->normal;
-            wi = *material.refract(wo, normal); // Funcion brdf
-            brdf = brdf * abs(wi * normal) * material.getDiffuse()/material.p_transmittance; // BRDF de refracción
+        else if (probability <= material.p_diffuse + material.p_specular) {
+            // Specular reflection - continue tracing, don't store photon
+            newDirection = currentRay.direction.specular(normal);
+            radiance = material.getSpecular();
+            esCaustico = true; // Mark as caustic path
         }
-
-        // Absorción
-        else if (probability > material.p_diffuse + material.p_specular + material.p_transmittance) {
-            // Si no se cumple ninguna de las condiciones anteriores, no hacemos nada
-            return;
+        else if (probability <= material.p_diffuse + material.p_specular + material.p_transmittance) {
+            // Transmission/refraction - continue tracing, don't store photon
+            auto refracted = material.refract(currentRay.direction, normal);
+            if (refracted) {
+                newDirection = *refracted;
+                radiance = material.getTransmittance();
+                esCaustico = true; // Mark as caustic path
+            } else
+                return; // Total internal reflection, absorb photon
+        }
+        else {
+            return; // Absorption - photon is absorbed
         }
         
-        // Sigma se refiere a la atenuación de la luz, que se puede usar para simular la dispersión de la luz en el medio
-        norma = (ray.origin - intersection->point).mod();
-        norma = norma * norma;
-        brdf = brdf * pow(M_E, -sigma*norma);
-        primerRebote = false;
-
-    } while ((intersection = this->intersect(Ray(intersection->point, wi))));
-}
-
-// TODO: Refactorizar nombres de variables y funciones
-RGB Scene::ecuacionRenderFotones(Point point, Direction wo, Material material, Direction normal, 
-    MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma) const {
-    
-    // Caso base
-    if (material.isEmissive()) {
-        return material.getDiffuse();
-    } 
-
-    double radioFotonMasLejano = 0.0;
-    double radioFoton = 0.0;
-    Point posFoton;
-    RGB L = RGB(0, 0, 0);
-
-    double probability = rand0_1(); // Probabilidad aleatoria entre 0 y 1
-
-    // Seguimos hasta llegar a una superficie difusa, simulando el camino del foton
-    while (probability <= material.p_diffuse + material.p_specular + material.p_transmittance) {
-
-        if (probability <= material.p_diffuse) {
-            if (wo * normal > 0.0) {
-                normal = Direction(-normal.x, -normal.y, -normal.z); // Dirección del rayo * normal de la intersección
-            } 
-            wo = wo - normal * 2.0f * (wo * normal); // Ecuación de reflexión
-        } else { // Especular
-            wo = *material.refract(wo, normal); // Ecuación de refracción
+        // Store photon only on diffuse surfaces and NOT on first bounce
+        if (storePhoton /* && !firstBounce */) {
+            // Store with incoming light direction
+            Foton f(intersection->point, currentRay.direction, currentFlux);
+            if (esCaustico)
+                causticos.push_back(f);
+            else
+                fotones.push_back(f);
         }
-
-        // Se maneja siguiente intersección
-        auto intersection = this->intersect(Ray(point, wo));
-        if (!intersection) {
-            return L; // Si no hay intersección, se devuelve la luz acumulada
-        } else {
-            point = intersection->point;
-            material = intersection->material;
-            normal = intersection->normal;
-            probability = rand0_1();
+        
+        // Update photon flux
+        currentFlux *= radiance;
+        
+        // Create new ray for next bounce (offset to avoid self-intersection)
+        Point newOrigin = intersection->point + newDirection * EPS;
+        currentRay = Ray(newOrigin, newDirection);
+        
+        // firstBounce = false;
+        
+        // Russian roulette termination based on flux intensity
+        if (bounce > 5) {
+            double maxFlux = currentFlux.max();
+            if (maxFlux < 0.01 || rand0_1() > maxFlux)
+                break;
         }
     }
+}
 
-    if (probability <= material.p_diffuse) {
+// Photon mapping radiance estimation following professor's specifications
+RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
+    MapaFotones mapa, const RenderConfig& config, const Kernel& kernel) const {
 
-        if (wo * normal > 0.0) {
-            normal = Direction(-normal.x, -normal.y, -normal.z); // Dirección del rayo * normal de la intersección
-        } 
+    Point point = intersection.point; // Ensure point is defined from intersection
+    Direction normal = intersection.normal; // Ensure normal is defined from intersection
+    Material material = intersection.material; // Ensure material is defined from intersection
 
-        // Obtener fotones cercanos con radio r y máximo k
-        // Función nearest_neighbors de la clase MapaFotones proporcionada por los profesores
-        vector<const Foton*> fotones = mapa.nearest_neighbors(point, kFotones, radio);
-        
-        // Se obtiene el foton más lejano
-        for (const Foton* foton : fotones) {
-            posFoton = foton->posicion;
-            radioFoton = (posFoton - point).mod();
-            if (radioFoton > radioFotonMasLejano) radioFotonMasLejano = radioFoton;
+    // Base case: emissive materials
+    if (material.isEmissive())
+        return material.emission;
+
+    // Russian roulette for BSDF sampling
+    float pd = material.p_diffuse;
+    float ps = material.p_specular;
+    float pt = material.p_transmittance;
+    float sum = pd + ps + pt;
+    if (sum <= 0.0f)
+        return RGB(0, 0, 0);
+
+    float r = rand0_1() * sum;
+
+    // Diffuse branch: photon density estimation + next event
+    if (r < pd) {
+        RGB Ld(0, 0, 0);
+        Direction n = intersection.normal;
+        if (wo.dot(n) > 0.0f)
+            n = -n;
+
+        // Gather nearby photons
+        auto photons = mapa.nearest_neighbors(
+            intersection.point,
+            config.kPhotons,
+            config.radius
+        );
+        if (photons.empty())
+            return RGB(0, 0, 0);
+
+        // Find maximum distance
+        double maxDist = 0.0;
+        for (auto f : photons) {
+            double d = (f->position - intersection.point).mod();
+            maxDist = max(maxDist, d);
         }
-        for (const Foton* f : fotones) {
-            Direction wi = f->direccion;
-            double coseno = Direction(-normal.x, -normal.y, -normal.z) * wi;
-            if (coseno > 0.0) {
-                posFoton = f->posicion;
-                L += (material.getDiffuse() / material.p_diffuse) * f->flujo
-                    *kernel->evaluar((posFoton - point).mod(), radioFotonMasLejano);
+
+        // Accumulate photon contributions
+        RGB contrib(0, 0, 0);
+        for (auto f : photons) {
+            Direction wi = f->incidentDir;
+            double cosT = utils::cosTheta(n, wi);
+            if (cosT > 0.0) {
+                double d = (f->position - intersection.point).mod();
+                double w = 1.0;
+                if (maxDist > 0.0)
+                    w = kernel.evaluar(d, maxDist);
+
+                RGB brdf = material.getDiffuse() / M_PI;
+                contrib += brdf * f->flux * cosT * w;
             }
         }
-        // Estimacion de la luz directa
-        if (!guardar) L += estimacionSiguienteEvento(point, wo, material, normal, sigma);
+
+        if (maxDist > 0.0) {
+            double area = M_PI * maxDist * maxDist;
+            Ld = contrib / area;
+        }
+
+        Ld += nextEventEstimation(intersection);
+        return Ld / pd;
     }
-    return L;
+    // Specular branch
+    else if (r < pd + ps) {
+        Direction dir = wo.specular(intersection.normal);
+        Point orig = intersection.point + dir * EPS;
+        auto hit = this->intersect(Ray(orig, dir));
+        if (hit)
+            return ecuacionRenderFotones(dir, *hit, mapa, config, kernel) / ps;
+    }
+    // Transmission branch
+    else if (r < pd + ps + pt) {
+        auto refr = material.refract(wo, intersection.normal);
+        if (!refr)
+            return RGB(0, 0, 0);
+        Direction dir = *refr;
+        Point orig = intersection.point + dir * EPS;
+        auto hit = this->intersect(Ray(orig, dir));
+        if (hit)
+            return ecuacionRenderFotones(dir, *hit, mapa, config, kernel) / pt;
+    }
+    return RGB(0, 0, 0);
 }
 
-// Devuelve la luz directa en un punto de la escena sobre una geometria difusa
-RGB Scene::estimacionSiguienteEvento(Point point, Direction wo, Material material, Direction n, double sigma) const {
-    
-    (void)wo; // Suppress unused parameter warning
-    
-    RGB L = RGB(0, 0, 0);
-    // Recorremos todas las luces puntuales
-    // y calculamos la luz directa que llega al punto x
-    // con la BRDF de Lambert
-    for (size_t i = 0; i < lights.size(); i++) {
-        Direction wi = (lights[i]->center - point).normalize();
-        double norma = (lights[i]->center - point).mod();
-        norma = norma * norma; // Norma al cuadrado
-        double coseno = n * wi;
-        RGB fr = material.getDiffuse() / M_PI; // BRDF Lambertiano
-        if (coseno > 0) {
-            auto interseccion = this->intersect(Ray(lights[i]->center, Direction(-wi.x, -wi.y, -wi.z)));
-            if (interseccion && interseccion->distance >= sqrt(norma) - EPS) {
-                if (sigma == 0.0) L = L + (fr * coseno) * (lights[i]->power / norma);
-                else L = L + (fr * coseno) * (lights[i]->power / norma) * pow(M_E, -sigma * norma);
-            }
-        }
-    }
-    return L;
-}
 
 string Scene::toString() const {
     ostringstream oss;
@@ -428,6 +440,10 @@ auto parseMaterial = [](std::istringstream& iss, std::ifstream& file) -> Materia
             if (lineStream >> er >> eg >> eb) {
                 material.emission = RGB(er, eg, eb);
             }
+        } else if (property == "n:") {
+            float ni;
+            if (lineStream >> ni)
+                material.n = ni;
         }
     }
     return material;
@@ -603,7 +619,23 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
         // Check if we need to output a new material
         const Material& objMaterial = object->getMaterial();
         if (firstObject || !(objMaterial == lastMaterial)) {
-            file << "material: " << objMaterial.getDiffuse().r << " " << objMaterial.getDiffuse().g << " " << objMaterial.getDiffuse().b << "\n";
+            // Output extended material block
+            file << "material:\n";
+            file << "  diffuse: "
+                 << objMaterial.getDiffuse().r << " "
+                 << objMaterial.getDiffuse().g << " "
+                 << objMaterial.getDiffuse().b << "\n";
+            if (objMaterial.getSpecular().max() > EPS)
+                file << "  specular: " << objMaterial.getSpecular().r << "\n";
+            if (objMaterial.getTransmittance().max() > EPS)
+                file << "  transmittance: " << objMaterial.getTransmittance().r << "\n";
+            if (objMaterial.emission.max() > EPS)
+                file << "  emission: "
+                     << objMaterial.emission.r << " "
+                     << objMaterial.emission.g << " "
+                     << objMaterial.emission.b << "\n";
+            if (objMaterial.n != 1.0)
+                file << "  n: " << objMaterial.n << "\n";
             lastMaterial = objMaterial;
         }
         

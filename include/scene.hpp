@@ -61,12 +61,11 @@ public:
     std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
     bool intersectAny(const Ray& ray, const float distance = 1000.0f) const;  // For shadow rays
     
-    RGB calculateDirectLight(const Intersection& inter) const;
+    RGB nextEventEstimation(const Intersection& inter) const;
 
-    MapaFotones generarMapaFotones(int nPaths, bool save, double sigma = 0.0f) const;
-    void reboteFoton(const Ray& ray, const RGB& light, std::list<Foton>& fotones, std::list<Foton>& causticos, bool esCaustico, bool save = false, double sigma = 0.0f) const;
-    RGB ecuacionRenderFotones(Point x, Direction wo, Material material, Direction n, MapaFotones mapa, int kFotones, double radio, bool guardar, Kernel* kernel, double sigma = 0.0f) const;
-    RGB estimacionSiguienteEvento(Point point, Direction wo, Material material, Direction n, double sigma) const;
+    MapaFotones generarMapaFotones(const int nPaths) const;
+    void reboteFoton(Ray currentRay, RGB currentFlux, std::list<Foton>& fotones, std::list<Foton>& causticos, bool esCaustico) const;
+    RGB ecuacionRenderFotones(Direction wo, const Intersection& intersection, MapaFotones mapa, const RenderConfig& config, const Kernel& kernel) const;
  
     std::string toString() const;
     friend std::ostream& operator<<(std::ostream& os, const Scene& scene) {

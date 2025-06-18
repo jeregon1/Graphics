@@ -59,6 +59,9 @@ public:
 
     PointLight(const Point& center, const RGB& emission) : center(center), power(emission) {}
 
+    float getPowerSum() const {
+        return power.r + power.g + power.b;
+    }
     std::string toString() const;
 
 };

@@ -37,7 +37,7 @@ public:
     // Normalize material coefficients to ensure physical validity
     void normalize();
 
-    std::optional<Direction> refractar(const Direction& wo, const Direction& normal) const;
+    std::optional<Direction> refract(const Direction& wo, const Direction& normal) const;
 
     // Validate material: ensure kd + ks + kt < 1 for all RGB channels and
     bool isPhysicallyValid() const {
@@ -122,8 +122,10 @@ public:
     RGB getDiffuse() const { return diffuse; }
     void setSpecular(const RGB& color) { specular = color; normalize(); }
     RGB getSpecular() const { return specular; }
-    void setTransmittance(const RGB& color) { transmittance = color; normalize(); 
-        if (transmittance.max() > 0) n = 1.5; // Default glass index
+    void setTransmittance(const RGB& color) { transmittance = color; normalize();
+        if (n != 1.0) return; // Only set n if it hasn't been set yet
+        if (transmittance.max() > 0) n = 1.5;
+        else n = 1; // Default glass index
     }
     RGB getTransmittance() const { return transmittance; }
 };

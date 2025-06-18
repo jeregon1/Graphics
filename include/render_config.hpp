@@ -42,6 +42,7 @@ enum class ToneMappingType {
     NONE,
     CLAMP,
     EQUALIZATION,
+    EQUALIZATION_GAMMA,
     EQUALIZATION_CLAMP,
     GAMMA,
     CLAMP_GAMMA,
@@ -75,7 +76,7 @@ inline const char* toString(AccelerationStructure acc) {
 }
 
 inline const char* toString(ToneMappingType type) {
-    static const char* names[] = {"none", "clamp", "equalization", "equalization_clamp", "gamma", "clamp_gamma", "reinhard"};
+    static const char* names[] = {"none", "clamp", "equalization", "equalization_gamma", "equalization_clamp", "gamma", "clamp_gamma", "reinhard"};
     return names[static_cast<int>(type)];
 }
 
@@ -120,6 +121,7 @@ struct RenderConfig {
     MapaFotones* photonMap = nullptr;
     unsigned kPhotons = 50;
     double radius = 0.1;
+    unsigned nPaths = 10000;  // Number of photons to emit
     Kernel* kernel = nullptr;
 
     // Additional rendering parameters
@@ -138,9 +140,9 @@ struct RenderConfig {
         : algorithm(alg), mode(mode), samplesPerPixel(samplesPerPixel) {}
     
     // Photon-mapping ctor, delegates algo setting then initializes its own fields
-    RenderConfig(MapaFotones* pMap, unsigned k, double r, Kernel* kern)
+    RenderConfig(MapaFotones* pMap, unsigned k, double r, unsigned nP, Kernel* kern)
         : algorithm(RenderingAlgorithm::PHOTON_MAPPING), photonMap(pMap), 
-          kPhotons(k), radius(r), kernel(kern) {}
+          kPhotons(k), radius(r), nPaths(nP), kernel(kern) {}
     
     // YAML file support
     static std::optional<RenderConfig> fromYAML(const std::string& filename);

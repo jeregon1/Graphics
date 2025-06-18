@@ -5,21 +5,22 @@
 #include "RGB.hpp"
 #include "kdtree.h"
 
-// TODO: Refactorizar los nombres de esta clase
 class Foton {
     public:
-    Point posicion;
-    Direction direccion;
-    RGB flujo;
+    Point position;
+    Direction incidentDir;
+    RGB flux;
 
-    Foton(Point p, Direction d, RGB f) : posicion(p), direccion(d), flujo(f) {}
+    static constexpr int MAX_BOUNCES = 10;
+
+    Foton(Point p, Direction d, RGB f) : position(p), incidentDir(d), flux(f) {}
     ~Foton() {}
 
-    double position(std::size_t i) const {
+    double getPosition(std::size_t i) const {
         switch(i) {
-            case 0: return posicion.x;
-            case 1: return posicion.y;
-            case 2: return posicion.z;
+            case 0: return position.x;
+            case 1: return position.y;
+            case 2: return position.z;
             default: throw std::out_of_range("Index out of range for Point");
         }
     }
@@ -27,7 +28,7 @@ class Foton {
 
 struct PosicionEjeFoton {
     float operator()(const Foton& p, std::size_t i) const {
-        return p.position(i);
+        return p.getPosition(i);
     }
 };
 

@@ -29,8 +29,8 @@ inline Direction muestraAleatoriaUniforme() {
     double v = rand0_1();
 
     // Calcula los ángulos esféricos
-    double theta = acos(2.0 * u - 1.0);      // Ángulo polar
-    double phi = 2.0 * M_PI * v;             // Ángulo azimutal
+    double theta = acos(2 * u - 1);      // Ángulo polar
+    double phi = 2 * M_PI * v;           // Ángulo azimutal
 
     // Convierte a coordenadas cartesianas
     double x = sin(theta) * cos(phi);

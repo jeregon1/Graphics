@@ -161,7 +161,8 @@ optional<Intersection> Triangle::intersect(const Ray& r) const {
     // Check if the intersection point is in front of the ray origin
     if (t > EPS) {
         Point intersectionPoint = r.at(t);
-        return Intersection(t, intersectionPoint, normal, material);
+        Direction hitNormal = r.direction.dot(normal) < 0 ? normal : -normal; // Ensure normal points toward the ray
+        return Intersection(t, intersectionPoint, hitNormal, material);
     } else {
         return nullopt;
     }
