@@ -4,12 +4,12 @@ CXX = g++
 # Compiler flags
 CXXFLAGS =  -O2 -std=c++20 -Wall -Wextra -Iinclude
 
-# Core library sources (exclude CLI programs)
-LIB_SRCS = $(filter-out src/tonemap_cli.cpp src/pathtracer_cli.cpp, $(wildcard src/*.cpp))
+# Core library sources (exclude CLI programs and main)
+LIB_SRCS = $(filter-out src/tonemap_cli.cpp src/pathtracer_cli.cpp src/main.cpp, $(wildcard src/*.cpp))
 LIB_OBJS = $(LIB_SRCS:src/%.cpp=build/%.o)
 
 # Individual test executables
-TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/test_cornell_box build/test_geometry build/test_intersect build/test_parallel build/test_yaml
+TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/main build/test_geometry build/test_intersect build/test_parallel build/test_yaml
 
 # CLI executables
 TONEMAP_SRCS = $(LIB_SRCS) src/tonemap_cli.cpp
@@ -35,7 +35,7 @@ build/test_p3: test/test_p3.cpp $(LIB_OBJS)
 build/test_bmp: test/test_bmp.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-build/test_cornell_box: test/test_cornell_box.cpp $(LIB_OBJS)
+build/main: src/main.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 build/test_geometry: test/test_geometry.cpp $(LIB_OBJS)
