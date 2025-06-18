@@ -9,6 +9,8 @@
 #include "toneMapping.hpp"
 #include <vector>
 #include <fstream>
+#include <chrono>
+#include <iomanip>
 #include <random>
 #include <cmath>
 
@@ -172,8 +174,17 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
 void PinholeCamera::showProgressIfNeeded(bool verbose) const {
     static std::atomic<size_t> renderedPixelCount{0};
     static std::atomic<int> lastProgressShown{-1};
+    static std::chrono::steady_clock::time_point startTime;
+    static std::atomic<bool> timerInitialized{false};
 
     if (!verbose) return;
+    
+    // Initialize timer on first call
+    bool expected = false;
+    if (timerInitialized.compare_exchange_strong(expected, true)) {
+        startTime = std::chrono::steady_clock::now();
+    }
+    
     renderedPixelCount.fetch_add(1); // Increment
 
     size_t total = static_cast<size_t>(width) * height;
@@ -182,6 +193,9 @@ void PinholeCamera::showProgressIfNeeded(bool verbose) const {
     
     if (currentProgress > lastShown && 
         lastProgressShown.compare_exchange_strong(lastShown, currentProgress)) {
+        
+        auto currentTime = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime);
         
         std::cout << '\r' << '[';
         int barWidth = 50;
@@ -194,10 +208,40 @@ void PinholeCamera::showProgressIfNeeded(bool verbose) const {
         }
         
         std::cout << "] " << currentProgress << "%";
+        
+        // Add elapsed time and ETA
+        if (currentProgress > 0 && currentProgress < 100) {
+            int totalEstimated = (elapsed.count() * 100) / currentProgress;
+            int remaining = totalEstimated - elapsed.count();
+            
+            int elapsedMin = elapsed.count() / 60;
+            int elapsedSec = elapsed.count() % 60;
+            int remainingMin = remaining / 60;
+            int remainingSec = remaining % 60;
+            
+            std::cout << " | " << std::setfill('0') << std::setw(2) << elapsedMin 
+                      << ":" << std::setw(2) << elapsedSec 
+                      << " | ETA: " << std::setw(2) << remainingMin 
+                      << ":" << std::setw(2) << remainingSec;
+        }
+        
         if (currentProgress >= 100) {
-            std::cout << std::endl;
+            auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+            double totalSeconds = totalTime.count() / 1000.0;
+            
+            if (totalSeconds >= 60.0) {
+                int minutes = static_cast<int>(totalSeconds) / 60;
+                double remainingSeconds = totalSeconds - (minutes * 60);
+                std::cout << " | Total: " << minutes << "m " << std::fixed << std::setprecision(3) 
+                          << remainingSeconds << "s       " << std::endl;
+            } else {
+                std::cout << " | Total: " << std::fixed << std::setprecision(3) << totalSeconds 
+                          << "s       " << std::endl;
+            }
+            
             lastProgressShown.store(-1); // Reset for next render
             renderedPixelCount.store(0); // Reset counter at start of render
+            timerInitialized.store(false); // Reset timer for next render
         } else {
             std::cout.flush();
         }
