@@ -11,8 +11,6 @@ class Foton {
     Direction incidentDir;
     RGB flux;
 
-    static constexpr int MAX_BOUNCES = 10;
-
     Foton(Point p, Direction d, RGB f) : position(p), incidentDir(d), flux(f) {}
     ~Foton() {}
 

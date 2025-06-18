@@ -70,11 +70,13 @@ private:
     // Accessor for KD-tree to get 3D coordinates from ObjectCentroid
     struct ObjectCentroidAccessor {
         float operator()(const ObjectCentroid& obj, std::size_t dimension) const {
+            // Ensure dimension is within bounds for 3D space
+            dimension = dimension % 3;
             switch(dimension) {
                 case 0: return obj.centroid.x;
                 case 1: return obj.centroid.y;
                 case 2: return obj.centroid.z;
-                default: return 0.0f;
+                default: return 0.0f; // This should never be reached now
             }
         }
     };

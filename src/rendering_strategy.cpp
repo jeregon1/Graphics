@@ -58,7 +58,10 @@ RGB PhotonMappingStrategy::calculatePixelColor(const PinholeCamera& camera, cons
                 
                 std::call_once(photonMapFlag, [&scene, &config]() {
                     std::cout << "Generating photon map..." << std::endl;
-                    photonMap = scene.generarMapaFotones(config.nPaths);
+                    photonMap = scene.generarMapaFotones(
+                        config.nPaths,
+                        config.maxBounces
+                    );
                     std::cout << "Photon map generated!" << std::endl;
                 });
                 

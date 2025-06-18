@@ -49,6 +49,7 @@ PinholeCamera::PinholeCamera(const Point& origin, const Direction& up, const Dir
 
 // Main unified render method
 Image PinholeCamera::render(const Scene& scene, const RenderConfig& config) const {
+    if (config.verbose) std::cout << "Render config: " << config << std::endl;
     std::vector<RGB> pixels(height * width);
     Image image;
     if (config.mode == RenderingMode::PARALLEL) {

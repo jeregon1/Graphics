@@ -17,9 +17,6 @@
 
 using namespace std;
 
-/*********
- * Scene *
- *********/
 
 optional<Intersection> Scene::intersect(const Ray& ray, const float distance) const {
     // Use acceleration structure if available
@@ -36,6 +33,21 @@ optional<Intersection> Scene::intersect(const Ray& ray, const float distance) co
         }
     }
     return closest_intersection;
+}
+
+bool Scene::intersectAny(const Ray& ray, const float distance) const {
+    // Use acceleration structure if available
+    if (accelerationStructure_ && accelerationBuilt_) {
+        return accelerationStructure_->intersectAny(ray, distance);
+    }
+    
+    // Fallback to linear search
+    for (const auto& object : objects) {
+        auto intersection = object->intersect(ray);
+        if (intersection && intersection->distance < distance)
+            return true;
+    }
+    return false;
 }
 
 RGB Scene::nextEventEstimation(const Intersection& inter) const {
@@ -66,8 +78,7 @@ RGB Scene::nextEventEstimation(const Intersection& inter) const {
     return color;
 }
 
-
-MapaFotones Scene::generarMapaFotones(const int nPaths) const {
+MapaFotones Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) const {
     list<Foton> fotones;      // Regular diffuse photons
     list<Foton> causticos;    // Caustic photons (specular/transmissive → diffuse)
     
@@ -90,7 +101,7 @@ MapaFotones Scene::generarMapaFotones(const int nPaths) const {
             RGB photonFlux = light->power * 4 * M_PI / numFotones;
             
             // Trace photon through scene with separate lists
-            reboteFoton(r, photonFlux, fotones, causticos, false);
+            reboteFoton(r, photonFlux, fotones, causticos, false, maxBounces);
         }
     }
     
@@ -110,35 +121,16 @@ MapaFotones Scene::generarMapaFotones(const int nPaths) const {
     return mapa;
 }
 
-// Acceleration structure management methods
-void Scene::buildAccelerationStructure(AccelerationStructure type) {
-    currentAcceleration_ = type;
-    accelerationStructure_ = AccelerationStructureFactory::create(type);
-    accelerationStructure_->build(objects);
-    accelerationBuilt_ = true;
-}
-
-bool Scene::intersectAny(const Ray& ray, const float distance) const {
-    // Use acceleration structure if available
-    if (accelerationStructure_ && accelerationBuilt_) {
-        return accelerationStructure_->intersectAny(ray, distance);
-    }
-    
-    // Fallback to linear search
-    for (const auto& object : objects) {
-        auto intersection = object->intersect(ray);
-        if (intersection && intersection->distance < distance)
-            return true;
-    }
-    return false;
-}
-
 // Photon random walk following professor's specifications
-void Scene::reboteFoton(Ray currentRay, RGB currentFlux, list<Foton>& fotones, 
-            list<Foton>& causticos, bool esCaustico) const {
+void Scene::reboteFoton(Ray currentRay,
+                       RGB currentFlux,
+                       list<Foton>& fotones,
+                       list<Foton>& causticos,
+                       bool esCaustico,
+                       unsigned maxBounces) const {
 
     // bool firstBounce = true;
-    for (int bounce = 0; bounce < Foton::MAX_BOUNCES; bounce++) {
+    for (unsigned bounce = 0; bounce < maxBounces; bounce++) {
         auto intersection = this->intersect(currentRay);
         if (!intersection)
             return; // Photon escaped scene
@@ -222,8 +214,6 @@ void Scene::reboteFoton(Ray currentRay, RGB currentFlux, list<Foton>& fotones,
 RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
     MapaFotones mapa, const RenderConfig& config, const Kernel& kernel) const {
 
-    Point point = intersection.point; // Ensure point is defined from intersection
-    Direction normal = intersection.normal; // Ensure normal is defined from intersection
     Material material = intersection.material; // Ensure material is defined from intersection
 
     // Base case: emissive materials
@@ -253,36 +243,39 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
             config.kPhotons,
             config.radius
         );
-        if (photons.empty())
-            return RGB(0, 0, 0);
+        if (photons.empty()) {
+            // no photon contribution, fall back to direct lighting
+            RGB direct = nextEventEstimation(intersection);
+            return direct / pd;
+            // return RGB(1,0,0); // debug
+        }
 
         // Find maximum distance
-        double maxDist = 0.0;
-        for (auto f : photons) {
-            double d = (f->position - intersection.point).mod();
-            maxDist = max(maxDist, d);
-        }
+        // double maxDist = 0.0;
+        // for (auto f : photons) {
+        //     double d = (f->position - intersection.point).mod();
+        //     maxDist = max(maxDist, d);
+        // }
 
         // Accumulate photon contributions
         RGB contrib(0, 0, 0);
         for (auto f : photons) {
-            Direction wi = f->incidentDir;
+            Direction wi = -f->incidentDir;
             double cosT = utils::cosTheta(n, wi);
             if (cosT > 0.0) {
                 double d = (f->position - intersection.point).mod();
                 double w = 1.0;
-                if (maxDist > 0.0)
-                    w = kernel.evaluar(d, maxDist);
+                // if (maxDist > 0.0)
+                    w = kernel.evaluar(d, config.radius); // maxDist?? or config.radius?
 
                 RGB brdf = material.getDiffuse() / M_PI;
                 contrib += brdf * f->flux * cosT * w;
             }
         }
 
-        if (maxDist > 0.0) {
-            double area = M_PI * maxDist * maxDist;
-            Ld = contrib / area;
-        }
+        // normalize by search radius area
+        double area = M_PI * config.radius * config.radius;
+        Ld = contrib / area;
 
         Ld += nextEventEstimation(intersection);
         return Ld / pd;
@@ -291,9 +284,10 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
     else if (r < pd + ps) {
         Direction dir = wo.specular(intersection.normal);
         Point orig = intersection.point + dir * EPS;
-        auto hit = this->intersect(Ray(orig, dir));
-        if (hit)
-            return ecuacionRenderFotones(dir, *hit, mapa, config, kernel) / ps;
+        if (auto hit = this->intersect(Ray(orig, dir))) {
+            RGB Li = ecuacionRenderFotones(dir, *hit, mapa, config, kernel);
+            return Li * material.getSpecular(); // multiplicar o no???
+        }
     }
     // Transmission branch
     else if (r < pd + ps + pt) {
@@ -302,9 +296,10 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
             return RGB(0, 0, 0);
         Direction dir = *refr;
         Point orig = intersection.point + dir * EPS;
-        auto hit = this->intersect(Ray(orig, dir));
-        if (hit)
-            return ecuacionRenderFotones(dir, *hit, mapa, config, kernel) / pt;
+        if (auto hit = this->intersect(Ray(orig, dir))) {
+            RGB Li = ecuacionRenderFotones(dir, *hit, mapa, config, kernel);
+            return Li * material.getTransmittance(); // multiplicar o no???
+        }
     }
     return RGB(0, 0, 0);
 }
@@ -370,6 +365,14 @@ Scene& Scene::defaultScene() {
     }();
     
     return scene;
+}
+
+// Acceleration structure management methods
+void Scene::buildAccelerationStructure(AccelerationStructure type) {
+    currentAcceleration_ = type;
+    accelerationStructure_ = AccelerationStructureFactory::create(type);
+    accelerationStructure_->build(objects);
+    accelerationBuilt_ = true;
 }
 
 

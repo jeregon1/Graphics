@@ -101,8 +101,8 @@ public:
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(3);
         oss << "Material(diffuse: " << diffuse 
-            << ", specular: " << specular 
-            << ", transmittance: " << transmittance 
+            << ", specular: " << specular.r 
+            << ", transmittance: " << transmittance.r 
             << ", emission: " << emission
             << ", p_diffuse: " << p_diffuse 
             << ", p_specular: " << p_specular 

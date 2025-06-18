@@ -63,8 +63,16 @@ public:
     
     RGB nextEventEstimation(const Intersection& inter) const;
 
-    MapaFotones generarMapaFotones(const int nPaths) const;
-    void reboteFoton(Ray currentRay, RGB currentFlux, std::list<Foton>& fotones, std::list<Foton>& causticos, bool esCaustico) const;
+    // Photon map generation
+    MapaFotones generarMapaFotones(const int nPaths, unsigned maxBounces) const;
+
+    // Photon random walk following professor's specifications
+    void reboteFoton(Ray currentRay,
+                     RGB currentFlux,
+                     std::list<Foton>& fotones,
+                     std::list<Foton>& causticos,
+                     bool esCaustico,
+                     unsigned maxBounces) const;
     RGB ecuacionRenderFotones(Direction wo, const Intersection& intersection, MapaFotones mapa, const RenderConfig& config, const Kernel& kernel) const;
  
     std::string toString() const;

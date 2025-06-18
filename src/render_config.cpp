@@ -1,9 +1,12 @@
-#include "../include/render_config.hpp"
+#include "render_config.hpp"
+#include "kernel.hpp"
+#include "foton.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <string>
 #include <optional>
+#include <algorithm>
 
 namespace {
     // Parse enum from string
@@ -53,8 +56,24 @@ namespace {
         if (str == "reinhard" || str == "REINHARD") return ToneMappingType::REINHARD;
         return ToneMappingType::NONE; // default
     }
+    
+    // Parse kernel name into Kernel* (or nullptr)
+    Kernel* parseKernel(const std::string& s) {
+        std::string name = s;
+        std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+        if (name == "box")           return new KernelCaja;
+        if (name == "triangular")    return new KernelTriangular;
+        if (name == "gaussian")      return new KernelGaussiano;
+        if (name == "epanechnikov")  return new KernelEpanechnikov;
+        if (name == "quartic")       return new KernelQuartic;
+        if (name == "tripeso")       return new KernelTripeso;
+        if (name == "tricubo")       return new KernelTricubo;
+        if (name == "coseno")        return new KernelCoseno;
+        if (name == "logistico")     return new KernelLogistico;
+        if (name == "sigmoide")      return new KernelSigmoide;
+        return nullptr;
+    }
 }
-
 
 
 std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) {
@@ -92,6 +111,11 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             std::string value;
             if (lineStream >> value) {
                 config.mode = parseMode(value);
+            }
+        } else if (key == "samples_per_pixel" || key == "samplesPerPixel") {
+            unsigned value;
+            if (lineStream >> value) {
+                config.samplesPerPixel = value;
             }
         } else if (key == "acceleration") {
             std::string value;
@@ -158,11 +182,13 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             if (lineStream >> value) {
                 config.nPaths = value;
             }
-        } else if (key == "samples_per_pixel" || key == "samplesPerPixel") {
-            unsigned value;
+        } else if (key == "kernel") {
+            std::string value;
             if (lineStream >> value) {
-                config.samplesPerPixel = value;
+                config.kernel = parseKernel(value);
             }
+        } else if (key == "max_bounces") {
+            lineStream >> config.maxBounces;
         } else if (key == "verbose") {
             std::string value;
             if (lineStream >> value) {
@@ -218,6 +244,11 @@ void RenderConfig::saveToYAML(const std::string& filename) const {
     file << "k_photons: " << kPhotons << "\n";
     file << "radius: " << radius << "\n";
     file << "n_paths: " << nPaths << "\n";
+    file << "kernel: ";
+    if (kernel) file << *kernel;
+    else file << "epanechnikov";
+    file << "\n";
+    file << "max_bounces: " << maxBounces << "\n";
     file << "\n";
     
     // Tone mapping

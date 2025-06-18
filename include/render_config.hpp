@@ -123,9 +123,10 @@ struct RenderConfig {
     double radius = 0.1;
     unsigned nPaths = 10000;  // Number of photons to emit
     Kernel* kernel = nullptr;
+    unsigned maxBounces = 10; // Maximum photon bounces
 
     // Additional rendering parameters
-    unsigned samplesPerPixel = 4;
+    unsigned samplesPerPixel = 10;
     bool verbose = false; // Progress bar display
     
     // Tone mapping configuration
@@ -140,9 +141,9 @@ struct RenderConfig {
         : algorithm(alg), mode(mode), samplesPerPixel(samplesPerPixel) {}
     
     // Photon-mapping ctor, delegates algo setting then initializes its own fields
-    RenderConfig(MapaFotones* pMap, unsigned k, double r, unsigned nP, Kernel* kern)
+    RenderConfig(MapaFotones* pMap, unsigned k, double r, unsigned nP, Kernel* kern, unsigned mb = 10)
         : algorithm(RenderingAlgorithm::PHOTON_MAPPING), photonMap(pMap), 
-          kPhotons(k), radius(r), nPaths(nP), kernel(kern) {}
+          kPhotons(k), radius(r), nPaths(nP), kernel(kern), maxBounces(mb) {}
     
     // YAML file support
     static std::optional<RenderConfig> fromYAML(const std::string& filename);
