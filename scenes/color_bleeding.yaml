@@ -1,0 +1,75 @@
+background: 0 0 0
+
+camera:
+  origin: 0 0 -3.5
+  forward: 0 0 3
+  fov: 90
+  pixels: 400 400
+
+# White emissive ceiling for lighting
+material:
+  emission: 8 8 8
+plane: 0 1 0 1
+
+# Floor - white diffuse to show color bleeding
+material:
+  diffuse: 0.9 0.9 0.9
+plane: 0 -1 0 1
+
+# Left wall - bright red for strong bleeding
+material:
+  diffuse: 1 0.1 0.1
+plane: -1 -0.2 0 1
+
+# Right wall - bright green for strong bleeding  
+material:
+  diffuse: 0.1 1 0.1
+plane: 1 -0.2 0 1
+
+# Back wall - bright blue for strong bleeding
+material:
+  diffuse: 0.1 0.1 1
+plane: 0 0 1 1
+
+# White sphere in center - will show color bleeding from all walls
+material:
+  diffuse: 0.9 0.9 0.9
+sphere: 0 -0.5 0 0.4
+
+# Small white cube on the left side - will show red bleeding
+material:
+  diffuse: 0.9 0.9 0.9
+# Front face
+triangle: -0.6 -0.8 0.3  -0.4 -0.8 0.3  -0.4 -0.6 0.3
+triangle: -0.6 -0.8 0.3  -0.4 -0.6 0.3  -0.6 -0.6 0.3
+# Back face  
+triangle: -0.6 -0.8 0.1  -0.4 -0.6 0.1  -0.4 -0.8 0.1
+triangle: -0.6 -0.8 0.1  -0.6 -0.6 0.1  -0.4 -0.6 0.1
+# Left face
+triangle: -0.6 -0.8 0.1  -0.6 -0.8 0.3  -0.6 -0.6 0.3
+triangle: -0.6 -0.8 0.1  -0.6 -0.6 0.3  -0.6 -0.6 0.1
+# Right face
+triangle: -0.4 -0.8 0.1  -0.4 -0.6 0.3  -0.4 -0.8 0.3
+triangle: -0.4 -0.8 0.1  -0.4 -0.6 0.1  -0.4 -0.6 0.3
+# Top face
+triangle: -0.6 -0.6 0.1  -0.6 -0.6 0.3  -0.4 -0.6 0.3
+triangle: -0.6 -0.6 0.1  -0.4 -0.6 0.3  -0.4 -0.6 0.1
+
+# Small white cube on the right side - will show green bleeding
+material:
+  diffuse: 0.9 0.9 0.9
+# Front face
+triangle: 0.4 -0.8 0.3  0.6 -0.8 0.3  0.6 -0.6 0.3
+triangle: 0.4 -0.8 0.3  0.6 -0.6 0.3  0.4 -0.6 0.3
+# Back face
+triangle: 0.4 -0.8 0.1  0.6 -0.6 0.1  0.6 -0.8 0.1
+triangle: 0.4 -0.8 0.1  0.4 -0.6 0.1  0.6 -0.6 0.1
+# Left face
+triangle: 0.4 -0.8 0.1  0.4 -0.8 0.3  0.4 -0.6 0.3
+triangle: 0.4 -0.8 0.1  0.4 -0.6 0.3  0.4 -0.6 0.1
+# Right face
+triangle: 0.6 -0.8 0.1  0.6 -0.6 0.3  0.6 -0.8 0.3
+triangle: 0.6 -0.8 0.1  0.6 -0.6 0.1  0.6 -0.6 0.3
+# Top face
+triangle: 0.4 -0.6 0.1  0.4 -0.6 0.3  0.6 -0.6 0.3
+triangle: 0.4 -0.6 0.1  0.6 -0.6 0.3  0.6 -0.6 0.1
