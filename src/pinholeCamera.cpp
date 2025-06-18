@@ -226,11 +226,18 @@ void PinholeCamera::showProgressIfNeeded(bool verbose) const {
         }
         
         if (currentProgress >= 100) {
-            auto totalTime = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime);
-            int totalMin = totalTime.count() / 60;
-            int totalSec = totalTime.count() % 60;
-            std::cout << " | Total: " << std::setfill('0') << std::setw(2) << totalMin 
-                      << ":" << std::setw(2) << totalSec << "       " << std::endl;
+            auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+            double totalSeconds = totalTime.count() / 1000.0;
+            
+            if (totalSeconds >= 60.0) {
+                int minutes = static_cast<int>(totalSeconds) / 60;
+                double remainingSeconds = totalSeconds - (minutes * 60);
+                std::cout << " | Total: " << minutes << "m " << std::fixed << std::setprecision(3) 
+                          << remainingSeconds << "s       " << std::endl;
+            } else {
+                std::cout << " | Total: " << std::fixed << std::setprecision(3) << totalSeconds 
+                          << "s       " << std::endl;
+            }
             
             lastProgressShown.store(-1); // Reset for next render
             renderedPixelCount.store(0); // Reset counter at start of render
