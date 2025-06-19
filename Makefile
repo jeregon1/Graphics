@@ -99,6 +99,9 @@ test-intersect: build/test_intersect
 test-yaml: build/test_yaml
 	./build/test_yaml
 
+main: build/main
+	./build/main
+
 # Quick test of CLI tools
 test-cli: $(CLI_EXECS)
 	@echo "Testing tone mapping CLI..."

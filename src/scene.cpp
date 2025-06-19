@@ -78,7 +78,7 @@ RGB Scene::nextEventEstimation(const Intersection& inter) const {
     return color;
 }
 
-MapaFotones Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) const {
+void Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) {
     list<Foton> fotones;      // Regular diffuse photons
     list<Foton> causticos;    // Caustic photons (specular/transmissive → diffuse)
     
@@ -107,18 +107,19 @@ MapaFotones Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) con
     
     if (fotones.empty()) {
         std::cout << "Warning: No photons generated!" << std::endl;
-        return MapaFotones(std::list<Foton>(), PosicionEjeFoton());
+        mapaFotones_ = MapaFotones(std::list<Foton>(), PosicionEjeFoton());
+        mapaCausticos_ = MapaFotones(std::list<Foton>(), PosicionEjeFoton());
+        photonMapBuilt_ = true;
+        return;
     }
     
     std::cout << "Generated " << fotones.size() << " regular photons and " 
               << causticos.size() << " caustic photons" << std::endl;
 
-    // Merge caustic photons into the regular photon list
-    fotones.splice(fotones.end(), causticos);
-    
-    // For now, we'll use only regular photons (can be extended to merge or use caustics separately)
-    MapaFotones mapa = construirMapaFotones(fotones);
-    return mapa;
+    // Build separate photon maps
+    mapaFotones_ = construirMapaFotones(fotones);
+    mapaCausticos_ = construirMapaFotones(causticos);
+    photonMapBuilt_ = true;
 }
 
 // Photon random walk following professor's specifications
@@ -129,7 +130,7 @@ void Scene::reboteFoton(Ray currentRay,
                        bool esCaustico,
                        unsigned maxBounces) const {
 
-    // bool firstBounce = true;
+    bool firstBounce = true;
     for (unsigned bounce = 0; bounce < maxBounces; bounce++) {
         auto intersection = this->intersect(currentRay);
         if (!intersection)
@@ -183,7 +184,7 @@ void Scene::reboteFoton(Ray currentRay,
         }
         
         // Store photon only on diffuse surfaces and NOT on first bounce
-        if (storePhoton /* && !firstBounce */) {
+        if (storePhoton && !firstBounce) {
             // Store with incoming light direction
             Foton f(intersection->point, currentRay.direction, currentFlux);
             if (esCaustico)
@@ -199,7 +200,7 @@ void Scene::reboteFoton(Ray currentRay,
         Point newOrigin = intersection->point + newDirection * EPS;
         currentRay = Ray(newOrigin, newDirection);
         
-        // firstBounce = false;
+        firstBounce = false;
         
         // Russian roulette termination based on flux intensity
         if (bounce > 5) {
@@ -212,7 +213,10 @@ void Scene::reboteFoton(Ray currentRay,
 
 // Photon mapping radiance estimation following professor's specifications
 RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
-    MapaFotones mapa, const RenderConfig& config, const Kernel& kernel) const {
+    const RenderConfig& config, const Kernel& kernel, const int bouncesLeft) const {
+
+    if (bouncesLeft < 0)
+        return RGB(0, 0, 0); // No more bounces left
 
     Material material = intersection.material; // Ensure material is defined from intersection
 
@@ -237,56 +241,64 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
         if (wo.dot(n) > 0.0f)
             n = -n;
 
-        // Gather nearby photons
-        auto photons = mapa.nearest_neighbors(
+        // Gather nearby regular photons
+        auto photons = mapaFotones_.nearest_neighbors(
             intersection.point,
             config.kPhotons,
             config.radius
         );
-        if (photons.empty()) {
-            // no photon contribution, fall back to direct lighting
-            RGB direct = nextEventEstimation(intersection);
-            return direct / pd;
-            // return RGB(1,0,0); // debug
-        }
+        
+        // Gather nearby caustic photons (with higher importance)
+        auto causticPhotons = mapaCausticos_.nearest_neighbors(
+            intersection.point,
+            config.kPhotons,  // Use fewer caustic photons since they're more important
+            config.radius
+        );
 
-        // Find maximum distance
-        // double maxDist = 0.0;
-        // for (auto f : photons) {
-        //     double d = (f->position - intersection.point).mod();
-        //     maxDist = max(maxDist, d);
-        // }
+        RGB regularContrib(0, 0, 0);
+        RGB causticContrib(0, 0, 0);
 
-        // Accumulate photon contributions
-        RGB contrib(0, 0, 0);
+        // Process regular photons
         for (auto f : photons) {
             Direction wi = -f->incidentDir;
             double cosT = utils::cosTheta(n, wi);
             if (cosT > 0.0) {
                 double d = (f->position - intersection.point).mod();
-                double w = 1.0;
-                // if (maxDist > 0.0)
-                    w = kernel.evaluar(d, config.radius); // maxDist?? or config.radius?
-
+                double w = kernel.evaluar(d, config.radius);
                 RGB brdf = material.getDiffuse() / M_PI;
-                contrib += brdf * f->flux * cosT * w;
+                regularContrib += brdf * f->flux * cosT * w;
             }
         }
 
-        // normalize by search radius area
-        double area = M_PI * config.radius * config.radius;
-        Ld = contrib / area;
+        // Process caustic photons with higher weight (3x importance)
+        const float causticWeight = 3.0f;
+        for (auto f : causticPhotons) {
+            Direction wi = -f->incidentDir;
+            double cosT = utils::cosTheta(n, wi);
+            if (cosT > 0.0) {
+                double d = (f->position - intersection.point).mod();
+                double w = kernel.evaluar(d, config.radius);
+                RGB brdf = material.getDiffuse() / M_PI;
+                causticContrib += brdf * f->flux * cosT * w * causticWeight;
+            }
+        }
 
-        Ld += nextEventEstimation(intersection);
-        return Ld / pd;
+        // Normalize by search radius area
+        double area = M_PI * config.radius * config.radius;
+        Ld = (regularContrib + causticContrib) / area;
+
+        // Always add direct lighting
+        RGB direct = nextEventEstimation(intersection);
+
+        return (Ld + direct);
     }
     // Specular branch
     else if (r < pd + ps) {
         Direction dir = wo.specular(intersection.normal);
         Point orig = intersection.point + dir * EPS;
         if (auto hit = this->intersect(Ray(orig, dir))) {
-            RGB Li = ecuacionRenderFotones(dir, *hit, mapa, config, kernel);
-            return Li * material.getSpecular(); // multiplicar o no???
+            RGB Li = ecuacionRenderFotones(dir, *hit, config, kernel, bouncesLeft - 1);
+            return Li * material.getSpecular();
         }
     }
     // Transmission branch
@@ -297,8 +309,8 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
         Direction dir = *refr;
         Point orig = intersection.point + dir * EPS;
         if (auto hit = this->intersect(Ray(orig, dir))) {
-            RGB Li = ecuacionRenderFotones(dir, *hit, mapa, config, kernel);
-            return Li * material.getTransmittance(); // multiplicar o no???
+            RGB Li = ecuacionRenderFotones(dir, *hit, config, kernel, bouncesLeft - 1);
+            return Li * material.getTransmittance();
         }
     }
     return RGB(0, 0, 0);
@@ -552,7 +564,7 @@ std::optional<std::pair<Scene, std::optional<PinholeCamera>>> Scene::fromYAML(co
         else if (keyword == "plane:") {
             float nx, ny, nz, d;
             iss >> nx >> ny >> nz >> d;
-            scene.addObject(std::make_shared<Plane>(Direction(nx, ny, nz), currentMaterial, (int)d));
+            scene.addObject(std::make_shared<Plane>(Direction(nx, ny, nz), currentMaterial, d));
             // std::cout << "DEBUG: Added plane with normal (" << nx << ", " << ny << ", " << nz << ") at distance " << d << std::endl;
         }
         else if (keyword == "light:") {

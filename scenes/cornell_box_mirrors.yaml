@@ -1,0 +1,48 @@
+background: 0 0 0
+
+camera:
+  origin: -.9 .8 0
+  # left: -2 0 0
+  # up:    0 -1 0
+  forward: 2 0 .8
+  fov: 120
+  pixels: 400 300
+
+# White diffuse material with nested material properties
+material: 1 1 1
+
+# Floor (y = -1)
+plane: 0 -1 0 1
+# Ceiling (y = 1)
+
+material: 
+  diffuse: .1 .1 .1
+  specular: .99   
+
+plane: 0 1 0 1
+# Left wall (x = -1), red diffuse
+# material: 1 0 0
+plane: -1 0 0 1
+# Right wall (x = 1), green diffuse
+# material: 0 1 0
+plane: 1 0 0 1
+# Back wall (z = 1)
+# material: 1 1 1
+plane: 0 0 1 1
+
+# plane: 0 0 -1 1
+
+# Spheres
+# Left sphere
+material: 
+  specular: .99     # Only one value needed and permitted
+sphere: -0.5 -0.7 0.25 0.3
+
+# Right sphere
+material: 
+  transmittance: .99
+sphere: 0.5 -0.7 -0.25 0.3
+
+
+# Point light at ceiling center
+light: 0 .5 0 1 1 1

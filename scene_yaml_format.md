@@ -1,6 +1,6 @@
-# Scene YAML Format (as parsed by Scene::fromYAML)
+# Scene YAML Format
 
-This project loads scenes from a simple, flat YAML-like file. Each line defines an element. No nested YAML or indentation is supported.
+This project loads scenes from a simple YAML-like file.
 
 ## Usage
 
@@ -14,53 +14,101 @@ if (result) {
 
 ## File Format
 
-- Each line starts with a keyword: `background:`, `material:`, `sphere:`, `plane:`, `light:`, or `camera:`
-- Only one material is active at a time (applies to subsequent objects)
-- No nested properties for material (only `material: R G B` is supported)
-- All keywords must be at the start of the line (no indentation)
+- Each line starts with a keyword: `background:`, `material:`, `sphere:`, `plane:`, `light:`, `camera:`, `triangle:`, `cone:`, `cylinder:`
+- Only **one material** is active at a time (applies to subsequent objects)
+- Top-level keywords must be at the start of the line (no indentation)
+
 - Lines starting with `#` are comments
-- Extra whitespace and empty lines are ignored
 
 ### Supported Elements
 
-#### Background Color
+### Background Color
 ```
 background: R G B
 ```
-- Example: `background: 0.1 0.1 0.2`
 
-#### Material
+### Material
+Simple format (diffuse only):
 ```
 material: R G B
 ```
-- Only RGB diffuse values are supported (no specular, transparency, etc.)
-- Example: `material: 0.8 0.2 0.2`
 
-#### Sphere
+Extended format:
 ```
-sphere: X Y Z RADIUS
+material:
+  diffuse: R G B
+  specular: S
+  transmittance: T
+  emission: R G B
+  n: REFRACTIVE_INDEX
 ```
-- Example: `sphere: 0 0 1 0.5`
+- All of them are optional.
+- For specular and transmittance, a single value is used for all RGB channels
 
-#### Plane
+### Sphere
 ```
-plane: NX NY NZ D
+sphere: X Y Z  RADIUS
 ```
-- D is distance (cast to int in implementation)
-- Example: `plane: 0 1 0 1.0`
+- Example: `sphere: 0 0 1  0.5`
 
-#### Light
+### Plane
 ```
-light: X Y Z R G B
+plane: NX NY NZ  D
 ```
+- D is distance to origin
+- Example: `plane: 0 1 0 1.2`
+
+### Triangle
+```
+triangle: AX AY AZ BX BY BZ CX CY CZ
+```
+- Defines a triangle with vertices at points A, B, and C
+
+### Cone
+```
+cone:
+  base: X Y Z
+  axis: X Y Z
+  radius: R
+  height: H
+```
+
+### Cylinder
+```
+cylinder:
+  base: X Y Z
+  axis: X Y Z
+  radius: R
+  height: H
+```
+
+### Light
+```
+light: X Y Z  R G B
+```
+- X, Y, Z define the position
+- R, G, B define the power/intensity
 - Example: `light: 0 2 0 2 2 2`
 
-#### Camera (optional)
+### Camera (optional)
+Basic format:
 ```
 camera:
+  origin: X Y Z
+  fov: ANGLE
+  forward: X Y Z
+  pixels: WIDTH HEIGHT
 ```
-- Camera parsing is handled by `parseCamera(file)` function
-- Implementation details depend on the parseCamera function
+
+Extended format:
+```
+camera:
+  origin: X Y Z
+  left: X Y Z
+  up: X Y Z
+  forward: X Y Z
+  pixels: WIDTH HEIGHT
+```
 - If present, camera will be available in the returned optional
 
 ## Example Scene File
@@ -71,19 +119,28 @@ background: 0.1 0.1 0.2
 material: 0.8 0.2 0.2
 sphere: 0 0 1 0.5
 
-material: 0.2 0.8 0.2
+material:
+  diffuse: 0.2 0.8 0.2
+  specular: 0.5
+  n: 1.5
 sphere: 1 0 1 0.5
 
 material: 0.5 0.5 0.5
 plane: 0 1 0 1
 
+triangle: 0 0 0 1 0 0 0 1 0
+
 light: 0 2 0 2 2 2
+
+camera:
+  origin: 0 0 -3
+  fov: 60
+  pixels: 1024 768
 ```
 
 ## Notes
-- Only the above elements are supported
 - Loader is case-sensitive and expects the exact keywords shown above
-- No nested YAML or complex indentation (flat format)
+- Both flat and hierarchical YAML styles are supported depending on the element
 - Comments start with `#`
 - Extra whitespace and empty lines are ignored
 - Unknown keywords are silently ignored

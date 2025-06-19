@@ -16,7 +16,7 @@ namespace {
                         PerRayColorFunc perRayColor) {
         RGB accumulatedColor(0, 0, 0);
         
-        for (unsigned i = 0; i < config.samplesPerPixel; i++) {
+        for (int i = 0; i < config.samplesPerPixel; i++) {
             
             float x_offset = x + (rand0_1() - 0.5f)*camera.getPixelSizeX();
             float y_offset = y + (rand0_1() - 0.5f)*camera.getPixelSizeY();
@@ -39,8 +39,8 @@ RGB RayTracingStrategy::calculatePixelColor(const PinholeCamera& camera, const S
 RGB PathTracingStrategy::calculatePixelColor(const PinholeCamera& camera, const Scene& scene,
                                             float x, float y, const RenderConfig& config) const {
     return samplePixelColor(camera, scene, x, y, config,
-        [&camera](const Ray& ray, const Scene& scene, const RenderConfig&) {
-            return camera.tracePath(ray, scene);
+        [&camera, maxBounces = config.maxBounces](const Ray& ray, const Scene& scene, const RenderConfig&) {
+            return camera.tracePath(ray, scene, maxBounces);
         }
     );
 }
@@ -51,24 +51,22 @@ RGB PhotonMappingStrategy::calculatePixelColor(const PinholeCamera& camera, cons
         [](const Ray& ray, const Scene& scene, const RenderConfig& config) {
 
             if (auto intersection = scene.intersect(ray)) {
-                // Generate photon map on-the-fly if not provided
+                // Generate photon map on-the-fly if not already built
                 static std::once_flag photonMapFlag;
-                static MapaFotones photonMap;
                 static KernelEpanechnikov defaultKernel; // Better kernel choice
                 
                 std::call_once(photonMapFlag, [&scene, &config]() {
-                    std::cout << "Generating photon map..." << std::endl;
-                    photonMap = scene.generarMapaFotones(
+                    std::cout << "Generating photon maps..." << std::endl;
+                    const_cast<Scene&>(scene).generarMapaFotones(
                         config.nPaths,
                         config.maxBounces
                     );
-                    std::cout << "Photon map generated!" << std::endl;
+                    std::cout << "Photon maps generated!" << std::endl;
                 });
                 
-                MapaFotones* pMap = config.photonMap ? config.photonMap : &photonMap;
                 Kernel* kernel = config.kernel ? config.kernel : &defaultKernel;
 
-                return scene.ecuacionRenderFotones(ray.direction, *intersection, *pMap, config, *kernel);
+                return scene.ecuacionRenderFotones(ray.direction, *intersection, config, *kernel, config.maxBounces);
             }
 
             return RGB(0, 0, 0);

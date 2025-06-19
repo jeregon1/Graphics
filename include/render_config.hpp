@@ -123,10 +123,10 @@ struct RenderConfig {
     double radius = 0.1;
     unsigned nPaths = 10000;  // Number of photons to emit
     Kernel* kernel = nullptr;
-    unsigned maxBounces = 10; // Maximum photon bounces
+    unsigned maxBounces = 6; // Maximum photon bounces
 
     // Additional rendering parameters
-    unsigned samplesPerPixel = 10;
+    int samplesPerPixel = 10;
     bool verbose = false; // Progress bar display
     
     // Tone mapping configuration

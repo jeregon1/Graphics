@@ -105,9 +105,9 @@ RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     return scene.nextEventEstimation(*intersection); // Return the color of the material at the intersection point
 }
 
-RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth) const {
-    
-    if (depth > 10) // Caso base: Máximo número de rebotes
+RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, const int bouncesLeft) const {
+
+    if (bouncesLeft < 0) // Caso base: Máximo número de rebotes
         return RGB(0, 0, 0);
 
     auto intersection = scene.intersect(ray);
@@ -135,7 +135,7 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
         Direction wi = randomCosineDirection(normal);
         float cosTheta = utils::cosTheta(normal, wi);
         Ray newRay(hitP + wi * EPS, wi);
-        RGB indirect = tracePath(newRay, scene, depth + 1);
+        RGB indirect = tracePath(newRay, scene, bouncesLeft - 1);
         RGB f = mat.evaluateBSDF(wi, -ray.direction, normal); // BRDF for diffuse reflection
         return direct + indirect * f * cosTheta / pd;
 
@@ -143,7 +143,7 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
         // Specular lobe (perfect mirror)
         Direction reflection = ray.direction.specular(normal);
         Ray newRay(hitP + reflection * EPS, reflection);
-        RGB reflectedRadiance = tracePath(newRay, scene, depth + 1);
+        RGB reflectedRadiance = tracePath(newRay, scene, bouncesLeft - 1);
         // f_specular = ks * δωr  ⇒ weight = ret * ks / p_specular
         return reflectedRadiance * mat.getSpecular() / ps;
     } else if (r < pd + ps + pt) {
@@ -155,7 +155,7 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
             // Total internal reflection - treat as specular reflection
             Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
             Ray newRay(hitP + normal * EPS, refl);
-            RGB ret = tracePath(newRay, scene, depth + 1);
+            RGB ret = tracePath(newRay, scene, bouncesLeft - 1);
             return ret * mat.getSpecular() / pt; // Use pt since we're in transmission branch
         }
 
@@ -163,7 +163,7 @@ RGB PinholeCamera::tracePath(const Ray& ray, const Scene& scene, unsigned depth)
 
         // Offset the ray to avoid self-intersection
         Ray newRay(hitP + transmit * EPS, transmit);
-        RGB ret = tracePath(newRay, scene, depth + 1);
+        RGB ret = tracePath(newRay, scene, bouncesLeft - 1);
         
         // Simple transmission without Fresnel for now
         return ret * mat.getTransmittance() / pt;

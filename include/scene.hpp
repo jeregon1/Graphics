@@ -63,8 +63,9 @@ public:
     
     RGB nextEventEstimation(const Intersection& inter) const;
 
-    // Photon map generation
-    MapaFotones generarMapaFotones(const int nPaths, unsigned maxBounces) const;
+    // Photon map generation and management
+    void generarMapaFotones(const int nPaths, unsigned maxBounces);
+    bool hasPhotonMaps() const { return photonMapBuilt_; }
 
     // Photon random walk following professor's specifications
     void reboteFoton(Ray currentRay,
@@ -73,7 +74,7 @@ public:
                      std::list<Foton>& causticos,
                      bool esCaustico,
                      unsigned maxBounces) const;
-    RGB ecuacionRenderFotones(Direction wo, const Intersection& intersection, MapaFotones mapa, const RenderConfig& config, const Kernel& kernel) const;
+    RGB ecuacionRenderFotones(Direction wo, const Intersection& intersection, const RenderConfig& config, const Kernel& kernel, const int rebotesRestantes) const;
  
     std::string toString() const;
     friend std::ostream& operator<<(std::ostream& os, const Scene& scene) {
@@ -94,4 +95,9 @@ private:
     mutable std::unique_ptr<AccelerationStructureInterface> accelerationStructure_;
     AccelerationStructure currentAcceleration_ = AccelerationStructure::NONE;
     mutable bool accelerationBuilt_ = false;
+    
+    // Photon map storage
+    mutable MapaFotones mapaFotones_;     // Regular photons
+    mutable MapaFotones mapaCausticos_;   // Caustic photons  
+    mutable bool photonMapBuilt_ = false;
 };

@@ -60,7 +60,7 @@ public:
         return Ray(origin, direction.normalize());
     }
     RGB traceRay(const Ray& ray, const Scene& scene) const;
-    RGB tracePath(const Ray& ray, const Scene& scene, unsigned depth = 0) const;
+    RGB tracePath(const Ray& ray, const Scene& scene, const int bouncesLeft = 6) const;
 
     std::string toString() const {
         std::ostringstream oss;

@@ -83,9 +83,9 @@ class Plane : public Object3D {
 public:
 
     Direction normal;
-    int distance; // Distance from the origin to the plane along the normal vector
+    float distance; // Distance from the origin to the plane along the normal vector
 
-    Plane(const Direction& normal, const Material& material, const int distance = 1) :
+    Plane(const Direction& normal, const Material& material, const float distance = 1) :
         Object3D(material), normal(normal.normalize()), distance(distance) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
