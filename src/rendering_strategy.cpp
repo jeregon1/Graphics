@@ -69,7 +69,7 @@ RGB PhotonMappingStrategy::calculatePixelColor(const PinholeCamera& camera, cons
                 return scene.ecuacionRenderFotones(ray.direction, *intersection, config, *kernel, config.maxBounces);
             }
 
-            return RGB(0, 0, 0);
+            return scene.backgroundColor;
         }
     );
 }

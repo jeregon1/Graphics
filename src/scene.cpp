@@ -539,39 +539,32 @@ std::optional<std::pair<Scene, std::optional<PinholeCamera>>> Scene::fromYAML(co
         std::string keyword;
         iss >> keyword;
         
-        // std::cout << "DEBUG: Processing keyword: '" << keyword << "' from line: '" << line << "'" << std::endl;
         
         if (keyword == "background:") {
             float r, g, b;
             iss >> r >> g >> b;
             scene.backgroundColor = RGB(r, g, b);
-            // std::cout << "DEBUG: Set background to " << r << " " << g << " " << b << std::endl;
         }
         else if (keyword == "camera:") {
             camera = parseCamera(file);
-            // std::cout << "DEBUG: Parsed camera" << std::endl;
         }
         else if (keyword == "material:") {
             currentMaterial = parseMaterial(iss, file);
-            // std::cout << "DEBUG: Parsed material: " << currentMaterial.toString() << std::endl;
         }
         else if (keyword == "sphere:") {
             float x, y, z, radius;
             iss >> x >> y >> z >> radius;
             scene.addObject(std::make_shared<Sphere>(Point(x, y, z), radius, currentMaterial));
-            // std::cout << "DEBUG: Added sphere at (" << x << ", " << y << ", " << z << ") with radius " << radius << std::endl;
         }
         else if (keyword == "plane:") {
             float nx, ny, nz, d;
             iss >> nx >> ny >> nz >> d;
             scene.addObject(std::make_shared<Plane>(Direction(nx, ny, nz), currentMaterial, d));
-            // std::cout << "DEBUG: Added plane with normal (" << nx << ", " << ny << ", " << nz << ") at distance " << d << std::endl;
         }
         else if (keyword == "light:") {
             float x, y, z, lr, lg, lb;
             iss >> x >> y >> z >> lr >> lg >> lb;
             scene.addLight(std::make_shared<PointLight>(Point(x, y, z), RGB(lr, lg, lb)));
-            // std::cout << "DEBUG: Added light at (" << x << ", " << y << ", " << z << ") with color (" << lr << ", " << lg << ", " << lb << ")" << std::endl;
         }
         else if (keyword == "triangle:") {
             float ax, ay, az, bx, by, bz, cx, cy, cz;
@@ -592,8 +585,6 @@ std::optional<std::pair<Scene, std::optional<PinholeCamera>>> Scene::fromYAML(co
                 scene.addObject(std::make_shared<Cone>(base, axis, radius, height, currentMaterial));
             else
                 scene.addObject(std::make_shared<Cylinder>(base, axis, radius, height, currentMaterial));
-        } else {
-            // std::cout << "DEBUG: Unknown keyword: '" << keyword << "'" << std::endl;
         }
     }
     
@@ -621,8 +612,6 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
         file << "  fov: " << camera->getFOV() << "\n";
         file << "  forward: " << camera->getForward().x << " " << camera->getForward().y << " " << camera->getForward().z << "\n";
         file << "  pixels: " << camera->getWidth() << " " << camera->getHeight() << "\n";
-        // Note: Camera internal vectors are private, so we output basic info
-        // For full camera reconstruction, we'd need accessor methods
         file << "\n";
     }
 
