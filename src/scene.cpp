@@ -51,6 +51,9 @@ bool Scene::intersectAny(const Ray& ray, const float distance) const {
 }
 
 RGB Scene::nextEventEstimation(const Intersection& inter) const {
+    if (getLightCount() == 0)
+        return inter.material.getDiffuse(); // No lights in the scene
+    
     RGB color = RGB(0, 0, 0);
     for (const auto& light : lights) {
         Direction lightToObjectDir = (light->center - inter.point);
@@ -93,22 +96,18 @@ void Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) {
         int numFotones = (int)(nPaths * light->getPowerSum() / totalEmision);
 
         for (int j = 0; j < numFotones; j++) {
-            // Sample random direction from light (uniform sphere sampling)
             Direction d = muestraAleatoriaUniforme();
             Ray r = Ray(light->center, d);
-            
-            // Initial photon energy - normalized by total photons and 4π steradians
-            RGB photonFlux = light->power * 4 * M_PI / numFotones;
-            
-            // Trace photon through scene with separate lists
+            // Photon flux = 4π * p0 / S (conservation of energy)
+            RGB photonFlux = light->power * (4 * M_PI) / numFotones;
             reboteFoton(r, photonFlux, fotones, causticos, false, maxBounces);
         }
     }
-    
-    if (fotones.empty()) {
+
+    if (fotones.empty() && causticos.empty()) {
         std::cout << "Warning: No photons generated!" << std::endl;
-        mapaFotones_ = MapaFotones(std::list<Foton>(), PosicionEjeFoton());
-        mapaCausticos_ = MapaFotones(std::list<Foton>(), PosicionEjeFoton());
+        mapaFotones_ = construirMapaFotones(std::list<Foton>());
+        mapaCausticos_ = construirMapaFotones(std::list<Foton>());
         photonMapBuilt_ = true;
         return;
     }
@@ -117,7 +116,7 @@ void Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) {
               << causticos.size() << " caustic photons" << std::endl;
 
     // Build separate photon maps
-    mapaFotones_ = construirMapaFotones(fotones);
+    mapaFotones_   = construirMapaFotones(fotones);
     mapaCausticos_ = construirMapaFotones(causticos);
     photonMapBuilt_ = true;
 }
@@ -265,7 +264,7 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
             if (cosT > 0.0) {
                 double d = (f->position - intersection.point).mod();
                 double w = kernel.evaluar(d, config.radius);
-                RGB brdf = material.getDiffuse() / M_PI;
+                RGB brdf = material.evaluateBSDF(wi, -wo, n); // BRDF for diffuse reflection
                 regularContrib += brdf * f->flux * cosT * w;
             }
         }
@@ -278,7 +277,7 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
             if (cosT > 0.0) {
                 double d = (f->position - intersection.point).mod();
                 double w = kernel.evaluar(d, config.radius);
-                RGB brdf = material.getDiffuse() / M_PI;
+                RGB brdf = material.evaluateBSDF(wi, -wo, n); // BRDF for diffuse reflection
                 causticContrib += brdf * f->flux * cosT * w * causticWeight;
             }
         }
@@ -290,7 +289,7 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
         // Always add direct lighting
         RGB direct = nextEventEstimation(intersection);
 
-        return (Ld + direct);
+        return (Ld + direct) / pd;
     }
     // Specular branch
     else if (r < pd + ps) {
@@ -298,7 +297,7 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
         Point orig = intersection.point + dir * EPS;
         if (auto hit = this->intersect(Ray(orig, dir))) {
             RGB Li = ecuacionRenderFotones(dir, *hit, config, kernel, bouncesLeft - 1);
-            return Li * material.getSpecular();
+            return Li * material.getSpecular() / ps;
         }
     }
     // Transmission branch
@@ -310,7 +309,7 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
         Point orig = intersection.point + dir * EPS;
         if (auto hit = this->intersect(Ray(orig, dir))) {
             RGB Li = ecuacionRenderFotones(dir, *hit, config, kernel, bouncesLeft - 1);
-            return Li * material.getTransmittance();
+            return Li * material.getTransmittance() / pt;
         }
     }
     return RGB(0, 0, 0);

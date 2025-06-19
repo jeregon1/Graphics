@@ -93,14 +93,8 @@ void PinholeCamera::renderRegion(std::vector<RGB>& pixels, const Scene& scene, c
 RGB PinholeCamera::traceRay(const Ray& ray, const Scene& scene) const {
     // Find the closest intersection of the ray with the scene
     auto intersection = scene.intersect(ray);
-
     if (!intersection)
         return scene.backgroundColor; // No intersection, return background color
-    
-    // Si no hay luces en la escena, devolvemos el color del material
-    int lightAmount = scene.getPointLightCount();
-    if (lightAmount == 0)
-        return intersection->material.getDiffuse();
 
     return scene.nextEventEstimation(*intersection); // Return the color of the material at the intersection point
 }

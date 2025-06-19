@@ -96,7 +96,7 @@ public:
         int regionSize;
     };
 
-    static Image render(const PinholeCamera& camera, const Scene& scene, const RenderConfig& cfg, RenderStats* stats = nullptr);
+    static Image render(const PinholeCamera& camera, const Scene& scene, RenderConfig cfg, RenderStats* stats = nullptr);
     
 private:
     mutable RenderStats lastStats_;

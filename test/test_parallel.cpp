@@ -26,7 +26,7 @@ std::string getTimestampedFilename(const std::string& base, const std::string& e
 
 void run_parallel_tests(int argc, char* argv[]) {
     // Default values
-    unsigned samples = 16;
+    unsigned samples = 100;
     int width = 256, height = 256;
     std::string outputBase = "parallel_test_output";
     if (argc > 1) samples = std::stoi(argv[1]);
@@ -71,11 +71,16 @@ void run_parallel_tests(int argc, char* argv[]) {
 
     // Test different parallel configurations
     vector<RenderConfig> configs = {
-        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=16; c.numThreads=4; return c; }(),
-        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=32; c.numThreads=4; return c; }(),
-        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=4; c.numThreads=4; return c; }(),
-        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=16; c.numThreads=4; return c; }(),
-        [](){ RenderConfig c; c.regionType=RegionType::COLUMN; c.regionSize=4; c.numThreads=4; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=16; c.numThreads=4; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=32; c.numThreads=4; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=4; c.numThreads=4; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=16; c.numThreads=4; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::COLUMN; c.regionSize=4; c.numThreads=4; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=16; c.numThreads=-1; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::RECTANGLE; c.regionSize=32; c.numThreads=-1; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=4; c.numThreads=-1; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::LINE; c.regionSize=16; c.numThreads=-1; c.samplesPerPixel=100; return c; }(),
+        [](){ RenderConfig c; c.regionType=RegionType::COLUMN; c.regionSize=4; c.numThreads=-1; c.samplesPerPixel=100; return c; }(),
     };
     
     cout << "Testing parallel configurations:\n";

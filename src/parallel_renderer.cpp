@@ -152,7 +152,18 @@ Image ParallelRenderer::render(const PinholeCamera& camera,
 
     std::vector<std::thread> workers;
 
-    for (int i = 0; i < cfg.numThreads; ++i) {
+    // Determine the number of threads to use
+    unsigned int maxThreads = std::thread::hardware_concurrency();
+    if (maxThreads == 0) maxThreads = 4; // Fallback if hardware_concurrency fails
+    
+    unsigned numThreadsToUse = cfg.numThreads;
+    
+    // If numThreads is -1 or exceeds hardware capacity, use maximum available
+    if (cfg.numThreads == -1 || static_cast<unsigned>(cfg.numThreads) > maxThreads) {
+        numThreadsToUse = maxThreads;
+    }
+
+    for (unsigned i = 0; i < numThreadsToUse; ++i) {
         workers.emplace_back([&taskQueue, &strategy, &camera, &scene, &pixels, &cfg, width, height]() {
             RenderTask task(0, 0, 0, 0);
 
