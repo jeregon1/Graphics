@@ -132,7 +132,7 @@ std::unique_ptr<TaskQueue> QueueFactory::createQueue(QueueType type) {
 // Unified parallel render entry point
 Image ParallelRenderer::render(const PinholeCamera& camera,
                                const Scene& scene,
-                               const RenderConfig& cfg,
+                               RenderConfig cfg,
                                RenderStats* stats) {
     auto startTime = std::chrono::high_resolution_clock::now();
 
