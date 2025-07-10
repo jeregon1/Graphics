@@ -11,6 +11,7 @@
 #include "render_config.hpp"
 #include "acceleration.hpp"
 #include "pinholeCamera.hpp"
+#include "photon/photon_mapping.hpp"
 
 class Scene {
 public:
@@ -57,6 +58,9 @@ public:
         }) + getPointLightCount();
     }
     
+    // Getter for lights (for photon mapping)
+    const std::vector<std::shared_ptr<PointLight>>& getLights() const { return lights; }
+    
     // Ray intersection methods
     std::optional<Intersection> intersect(const Ray& ray, const float distance = 1000.0f) const;
     bool intersectAny(const Ray& ray, const float distance = 1000.0f) const;  // For shadow rays
@@ -66,6 +70,10 @@ public:
     // Photon map generation and management
     void generarMapaFotones(const int nPaths, unsigned maxBounces);
     bool hasPhotonMaps() const { return photonMapBuilt_; }
+    
+    // New photon mapping interface
+    std::shared_ptr<photon::PhotonMapper> getPhotonMapper() const;
+    void initializePhotonMapper();
 
     // Photon random walk following professor's specifications
     void reboteFoton(Ray currentRay,
@@ -96,8 +104,11 @@ private:
     AccelerationStructure currentAcceleration_ = AccelerationStructure::NONE;
     mutable bool accelerationBuilt_ = false;
     
-    // Photon map storage
+    // Photon map storage (legacy)
     mutable MapaFotones mapaFotones_;     // Regular photons
     mutable MapaFotones mapaCausticos_;   // Caustic photons  
     mutable bool photonMapBuilt_ = false;
+    
+    // New photon mapping system
+    mutable std::shared_ptr<photon::PhotonMapper> photonMapper_;
 };

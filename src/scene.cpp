@@ -315,6 +315,17 @@ RGB Scene::ecuacionRenderFotones(Direction wo, const Intersection& intersection,
     return RGB(0, 0, 0);
 }
 
+std::shared_ptr<photon::PhotonMapper> Scene::getPhotonMapper() const {
+    if (!photonMapper_) {
+        photonMapper_ = std::make_shared<photon::PhotonMapper>();
+    }
+    return photonMapper_;
+}
+
+void Scene::initializePhotonMapper() {
+    photonMapper_ = std::make_shared<photon::PhotonMapper>();
+}
+
 
 string Scene::toString() const {
     ostringstream oss;

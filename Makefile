@@ -5,11 +5,11 @@ CXX = g++
 CXXFLAGS =  -O2 -std=c++20 -Wall -Wextra -Iinclude
 
 # Core library sources (exclude CLI programs and main)
-LIB_SRCS = $(filter-out src/tonemap_cli.cpp src/pathtracer_cli.cpp src/main.cpp, $(wildcard src/*.cpp))
+LIB_SRCS = $(filter-out src/tonemap_cli.cpp src/pathtracer_cli.cpp src/main.cpp, $(wildcard src/*.cpp)) $(wildcard src/photon/*.cpp)
 LIB_OBJS = $(LIB_SRCS:src/%.cpp=build/%.o)
 
 # Individual test executables
-TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/main build/test_geometry build/test_intersect build/test_parallel build/test_yaml
+TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/main build/test_geometry build/test_intersect build/test_parallel build/test_yaml build/test_photon_mapping
 
 # CLI executables
 TONEMAP_SRCS = $(LIB_SRCS) src/tonemap_cli.cpp
@@ -50,6 +50,9 @@ build/test_parallel: test/test_parallel.cpp $(LIB_OBJS)
 build/test_yaml: test/test_yaml.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
+build/test_photon_mapping: test/test_photon_mapping.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
 # Build the unified test executable
 $(TEST_EXEC): $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
@@ -63,11 +66,12 @@ $(PATHTRACER_EXEC): $(PATHTRACER_OBJS)
 
 # Build object files
 build/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # Clean up
 clean:
-	rm -f build/*.o $(TEST_EXECUTABLES) $(CLI_EXECS)
+	rm -f build/*.o build/photon/*.o $(TEST_EXECUTABLES) $(CLI_EXECS)
 
 # Run all tests
 test: $(TEST_EXECUTABLES)
