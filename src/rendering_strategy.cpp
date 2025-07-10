@@ -4,6 +4,7 @@
 #include "scene.hpp"
 #include "utils.hpp"
 #include "kernel.hpp"
+#include "photon/photon_mapping.hpp"
 #include <memory>
 #include <iostream>
 #include <mutex>
@@ -51,22 +52,33 @@ RGB PhotonMappingStrategy::calculatePixelColor(const PinholeCamera& camera, cons
         [](const Ray& ray, const Scene& scene, const RenderConfig& config) {
 
             if (auto intersection = scene.intersect(ray)) {
-                // Generate photon map on-the-fly if not already built
+                // Get or create photon mapper for the scene
                 static std::once_flag photonMapFlag;
-                static KernelEpanechnikov defaultKernel; // Better kernel choice
+                static std::shared_ptr<photon::PhotonMapper> photonMapper;
+                static std::shared_ptr<photon::PhotonMappingRenderer> renderer;
+                static KernelEpanechnikov defaultKernel;
                 
                 std::call_once(photonMapFlag, [&scene, &config]() {
-                    std::cout << "Generating photon maps..." << std::endl;
-                    const_cast<Scene&>(scene).generarMapaFotones(
-                        config.nPaths,
-                        config.maxBounces
-                    );
-                    std::cout << "Photon maps generated!" << std::endl;
+                    std::cout << "Generating photon maps using new modular system..." << std::endl;
+                    
+                    // Create photon mapper and generate photon maps
+                    photonMapper = std::make_shared<photon::PhotonMapper>();
+                    photonMapper->generatePhotonMaps(scene, config.nPaths, config.maxBounces);
+                    
+                    // Create photon mapping renderer
+                    renderer = std::make_shared<photon::PhotonMappingRenderer>();
+                    renderer->setPhotonMapper(photonMapper);
+                    
+                    std::cout << "Photon maps generated using new modular system!" << std::endl;
                 });
                 
+                if (!photonMapper || !renderer) {
+                    // Fallback to direct lighting if photon mapping fails
+                    return scene.nextEventEstimation(*intersection);
+                }
+                
                 Kernel* kernel = config.kernel ? config.kernel : &defaultKernel;
-
-                return scene.ecuacionRenderFotones(ray.direction, *intersection, config, *kernel, config.maxBounces);
+                return renderer->renderPixel(ray.direction, *intersection, scene, config, *kernel, config.maxBounces);
             }
 
             return scene.backgroundColor;
