@@ -1,0 +1,9 @@
+# Scene Configuration
+# Generated automatically
+
+background: 0 0 0
+
+material: 1 1 1
+sphere: 0 0 0 0.5
+
+light: 0 2 -1 10 10 10

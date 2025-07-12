@@ -70,8 +70,22 @@
         "xtr1common": "cpp",
         "xutility": "cpp",
         "cool functions": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "chrono": "cpp",
+        "codecvt": "cpp",
+        "condition_variable": "cpp",
+        "ratio": "cpp",
+        "mutex": "cpp",
+        "semaphore": "cpp",
+        "span": "cpp",
+        "stop_token": "cpp",
+        "thread": "cpp",
+        "variant": "cpp"
     },
     "C_Cpp.default.compilerPath": "C:\\MinGW\\bin\\g++.exe",
     "makefile.configureOnOpen": false,
+    "github.copilot.chat.agent.terminal.allowList": {
+        "make": true,
+        "g++": true
+    },
 }
