@@ -1,0 +1,34 @@
+# Render Configuration
+# Generated automatically
+
+samples_per_pixel: 100
+algorithm: photon_mapping
+
+mode: parallel
+
+acceleration: none
+
+
+# Parallel rendering settings
+region_type: column
+
+region_size: 16
+num_threads: 8
+queue_type: std_queue
+
+# Photon mapping settings
+k_photons: 30
+radius: 0.2
+n_paths: 10000
+kernel: KernelEpanechnikov
+max_bounces: 6
+
+# Tone mapping settings
+tone_mapping: equalization_gamma
+tone_mapping_max: 1
+tone_mapping_gamma: 2.2
+tone_mapping_key: 0.18
+tone_mapping_lwhite: 1
+
+verbose: true
+
