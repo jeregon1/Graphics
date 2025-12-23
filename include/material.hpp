@@ -28,10 +28,19 @@ public:
     Material(const RGB& diffuse = RGB{0,0,0}, const RGB& specular = RGB{0,0,0}, const RGB& transmittance = RGB{0,0,0}, const RGB& emission = RGB{0,0,0}) :
             transmittance(transmittance), diffuse(diffuse), specular(specular), emission(emission), n(transmittance.max() > 0 ? 1.5 : 1)
     { 
-        if (!isPhysicallyValid())
-            throw std::invalid_argument("Invalid material properties");
-        // Set default refractive index for glass if transmittance is non-zero
-        normalize(); 
+        // Check if material needs normalization BEFORE normalizing
+        bool needsNormalization = !isPhysicallyValid();
+        
+        // Normalize material coefficients to ensure physical validity
+        normalize();
+        
+        // Emit warning if material needed normalization
+        if (needsNormalization) {
+            std::cerr << "Warning: Material properties out of range. Auto-normalized:" << std::endl
+                      << "  diffuse: " << diffuse << std::endl
+                      << "  specular: " << specular << std::endl
+                      << "  transmittance: " << transmittance << std::endl;
+        }
     }
 
     // Normalize material coefficients to ensure physical validity
