@@ -23,7 +23,7 @@ public:
 
    Image() = default;
    Image(int width, int height) noexcept 
-         : width(width), height(height) {}
+         : width(width), height(height), pixels(width * height) {}
 
    Image(int width, int height, std::vector<RGB> pixels) noexcept
          : width(width), height(height), pixels(std::move(pixels)) {}
@@ -49,4 +49,9 @@ public:
    // Utility functions
    [[nodiscard]] bool empty() const noexcept { return pixels.empty(); }
    [[nodiscard]] size_t size() const noexcept { return pixels.size(); }
+
+   [[nodiscard]] RGB& at(int x, int y) noexcept { return pixels[y * width + x]; }
+   [[nodiscard]] const RGB& at(int x, int y) const noexcept { return pixels[y * width + x]; }
+
+   [[nodiscard]] Image gaussianBlur(const Image& src, float sigma) noexcept;
 };

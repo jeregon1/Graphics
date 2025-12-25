@@ -48,6 +48,127 @@ void skipComments(std::ifstream &file, float &diskColorRes) {
     }
 }
 
+std::vector<float> make_gaussian_kernel(float sigma) noexcept {
+
+    // Se toma un radio de 3*sigma porque fuera de ese rango
+    // la gaussiana es prácticamente 0
+    const int radius = static_cast<int>(std::ceil(3.0f * sigma));
+
+    // Tamaño total del kernel: [-radius, ..., 0, ..., +radius]
+    const int size = 2 * radius + 1;
+
+    std::vector<float> kernel(size);
+    float sum = 0.0f; // Para normalizar después
+
+    // Se recorre el kernel usando índices centrados en 0
+    for (int i = -radius; i <= radius; ++i) {
+
+        // Fórmula de la gaussiana 1D (sin el factor constante,
+        // porque se normaliza después)
+        float v = std::exp(-(i * i) / (2.0f * sigma * sigma));
+
+        // i va de [-radius, radius], así que se desplaza para indexar el vector
+        kernel[i + radius] = v;
+
+        // Se acumula la suma total de los pesos
+        sum += v;
+    }
+
+    // Normalización: asegura que la suma del kernel sea 1
+    // (no cambia el brillo global de la imagen)
+    for (float& v : kernel)
+        v /= sum;
+
+    return kernel;
+}
+
+
+// Aplica el filtro gaussiano SOLO en horizontal
+Image gaussian_blur_horizontal(const Image& src,
+                               const std::vector<float>& k) noexcept {
+
+    // Imagen temporal donde se guarda el resultado
+    Image tmp(src.width, src.height);
+
+    // Radio del kernel (mitad del tamaño)
+    const int r = static_cast<int>(k.size() / 2);
+
+    for (int y = 0; y < src.height; ++y) {
+        for (int x = 0; x < src.width; ++x) {
+
+            // Acumulador del color resultante
+            RGB acc{0, 0, 0};
+
+            // Convolución horizontal: solo se desplaza en X
+            for (int i = -r; i <= r; ++i) {
+
+                // Se maneja el borde clampeando al píxel más cercano
+                int xx = std::clamp(x + i, 0, src.width - 1);
+
+                // Píxel vecino
+                const RGB& p = src.at(xx, y);
+
+                // Peso correspondiente del kernel
+                float w = k[i + r];
+
+                // Se acumula cada canal de color
+                acc.r += p.r * w;
+                acc.g += p.g * w;
+                acc.b += p.b * w;
+            }
+
+            // Se guarda el píxel filtrado
+            tmp.pixels[y * tmp.width + x] = acc;
+        }
+    }
+
+    return tmp;
+}
+
+
+// Aplica el filtro gaussiano SOLO en vertical
+Image gaussian_blur_vertical(const Image& src,
+                             const std::vector<float>& k) noexcept {
+
+    Image dst(src.width, src.height);
+    const int r = static_cast<int>(k.size() / 2);
+
+    for (int y = 0; y < src.height; ++y) {
+        for (int x = 0; x < src.width; ++x) {
+
+            RGB acc{0, 0, 0};
+
+            // Convolución vertical: solo se desplaza en Y
+            for (int i = -r; i <= r; ++i) {
+
+                // Manejo de bordes en vertical
+                int yy = std::clamp(y + i, 0, src.height - 1);
+
+                const RGB& p = src.at(x, yy);
+                float w = k[i + r];
+
+                acc.r += p.r * w;
+                acc.g += p.g * w;
+                acc.b += p.b * w;
+            }
+
+            dst.pixels[y * dst.width + x] = acc;
+        }
+    }
+
+    return dst;
+}
+
+// Función pública: aplica el blur gaussiano completo (2D)
+Image Image::gaussianBlur(const Image& src, float sigma) noexcept {
+
+    auto kernel = make_gaussian_kernel(sigma);
+    Image tmp = gaussian_blur_horizontal(src, kernel);
+    return gaussian_blur_vertical(tmp, kernel);
+
+}
+
+
 std::optional<Image> Image::readPPM(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {

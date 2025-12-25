@@ -9,7 +9,7 @@ LIB_SRCS = $(filter-out src/tonemap_cli.cpp src/pathtracer_cli.cpp src/main.cpp,
 LIB_OBJS = $(LIB_SRCS:src/%.cpp=build/%.o)
 
 # Individual test executables
-TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/main build/test_geometry build/test_intersect build/test_parallel build/test_yaml
+TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/main build/test_geometry build/test_intersect build/test_parallel build/test_yaml build/test_bilateral
 
 # CLI executables
 TONEMAP_SRCS = $(LIB_SRCS) src/tonemap_cli.cpp
@@ -48,6 +48,9 @@ build/test_parallel: test/test_parallel.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 build/test_yaml: test/test_yaml.cpp $(LIB_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+build/test_bilateral: test/test_bilateral.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Build the unified test executable
@@ -99,6 +102,9 @@ test-intersect: build/test_intersect
 test-yaml: build/test_yaml
 	./build/test_yaml
 
+test-bilateral: build/test_bilateral
+	./build/test_bilateral
+
 main: build/main
 	./build/main
 
@@ -136,4 +142,4 @@ test-pathtracer: $(PATHTRACER_EXEC)
 		echo "No scene files found in scenes/ directory"; \
 	fi
 
-.PHONY: all clean test test-p2 test-p3 test-parallel test-cornell test-bmp test-geometry test-intersect test-yaml test-cli test-pathtracer
+.PHONY: all clean test test-p2 test-p3 test-parallel test-cornell test-bmp test-geometry test-intersect test-yaml test-bilateral test-cli test-pathtracer

@@ -36,7 +36,7 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/main",
+            "program": "${workspaceFolder}/build/test_bilateral",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
