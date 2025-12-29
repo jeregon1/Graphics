@@ -168,6 +168,85 @@ Image Image::gaussianBlur(const Image& src, float sigma) noexcept {
 
 }
 
+// Aplica un filtro bilateral a la imagen de entrada
+// sigma_space controla el tamaño espacial del filtro
+// sigma_color controla cuánto se preservan los bordes
+Image Image::bilateralFilter(const Image& src,
+                             float sigma_space,
+                             float sigma_color) noexcept
+{
+    Image dst(src.width, src.height);
+
+    // Radio espacial: igual que en la gaussiana, se corta en 3*sigma
+    const int radius =
+        static_cast<int>(std::ceil(3.0f * sigma_space));
+
+    // Precalculamos constantes para evitar divisiones en el bucle
+    const float inv_2_sigma_space2 = 1.0f / (2.0f * sigma_space * sigma_space);
+    const float inv_2_sigma_color2 = 1.0f / (2.0f * sigma_color * sigma_color);
+
+    for (int y = 0; y < src.height; ++y) {
+        for (int x = 0; x < src.width; ++x) {
+
+            // Color del píxel central
+            const RGB& center = src.at(x, y);
+
+            // Acumulador del color resultante
+            RGB acc{0, 0, 0};
+
+            // Acumulador de pesos (para normalizar)
+            float weight_sum = 0.0f;
+
+            // Ventana 2D alrededor del píxel
+            for (int j = -radius; j <= radius; ++j) {
+                for (int i = -radius; i <= radius; ++i) {
+
+                    // Coordenadas vecinas con manejo de bordes
+                    int xx = std::clamp(x + i, 0, src.width  - 1);
+                    int yy = std::clamp(y + j, 0, src.height - 1);
+
+                    const RGB& p = src.at(xx, yy);
+
+                    // Distancia espacial al píxel central (x, y)
+                    float dist_space = static_cast<float>(i * i + j * j);
+
+                    // Distancia de color (euclídea al cuadrado)
+                    float dr = p.r - center.r;
+                    float dg = p.g - center.g;
+                    float db = p.b - center.b;
+                    float dist_color = dr * dr + dg * dg + db * db;
+
+                    // Peso espacial (gaussiana espacial)
+                    float w_space = std::exp(-dist_space * inv_2_sigma_space2);
+
+                    // Peso de rango (gaussiana de color)
+                    float w_color = std::exp(-dist_color * inv_2_sigma_color2);
+
+                    // Peso bilateral total
+                    float w = w_space * w_color;
+
+                    // Acumulación ponderada del color
+                    acc.r += p.r * w;
+                    acc.g += p.g * w;
+                    acc.b += p.b * w;
+
+                    weight_sum += w;
+                }
+            }
+
+            // Normalización final
+            acc.r /= weight_sum;
+            acc.g /= weight_sum;
+            acc.b /= weight_sum;
+
+            dst.at(x, y) = acc;
+        }
+    }
+
+    return dst;
+}
+
+
 
 std::optional<Image> Image::readPPM(const std::string& path) {
     std::ifstream file(path);

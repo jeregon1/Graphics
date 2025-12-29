@@ -54,4 +54,9 @@ public:
    [[nodiscard]] const RGB& at(int x, int y) const noexcept { return pixels[y * width + x]; }
 
    [[nodiscard]] Image gaussianBlur(const Image& src, float sigma) noexcept;
+
+   [[nodiscard]] Image bilateralFilter(const Image& src,
+                                      float sigma_space,
+                                      float sigma_color) noexcept;
+
 };

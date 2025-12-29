@@ -79,6 +79,11 @@ public:
     // Shared pixel rendering logic for both serial and parallel
     void renderRegion(std::vector<RGB>& pixels, const Scene& scene, const RenderConfig& config, 
         int startY = 0, int startX = 0, int endY = -1, int endX = -1) const;
+    
+    // Render region with separate direct and indirect lighting
+    void renderRegionWithLightingDecomposition(std::vector<RGB>& directPixels, std::vector<RGB>& indirectPixels, 
+        const Scene& scene, const RenderConfig& config, 
+        int startY = 0, int startX = 0, int endY = -1, int endX = -1) const;
 
 private:
     Point origin;

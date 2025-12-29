@@ -49,6 +49,13 @@ enum class ToneMappingType {
     REINHARD
 };
 
+enum class LightingDecomposition {
+    NONE,           // Standard rendering (combined direct + indirect)
+    DIRECT_ONLY,    // Only direct lighting
+    INDIRECT_ONLY,  // Only indirect lighting
+    SEPARATE        // Separate images for direct and indirect
+};
+
 // Simple array-based toString functions
 inline const char* toString(RenderingAlgorithm alg) {
     static const char* names[] = {"ray_tracing", "path_tracing", "photon_mapping"};
@@ -80,6 +87,11 @@ inline const char* toString(ToneMappingType type) {
     return names[static_cast<int>(type)];
 }
 
+inline const char* toString(LightingDecomposition decomp) {
+    static const char* names[] = {"none", "direct_only", "indirect_only", "separate"};
+    return names[static_cast<int>(decomp)];
+}
+
 // Operator<< overloads for enums
 inline std::ostream& operator<<(std::ostream& os, RenderingAlgorithm alg) {
     return os << toString(alg);
@@ -105,6 +117,10 @@ inline std::ostream& operator<<(std::ostream& os, ToneMappingType type) {
     return os << toString(type);
 }
 
+inline std::ostream& operator<<(std::ostream& os, LightingDecomposition decomp) {
+    return os << toString(decomp);
+}
+
 
 struct RenderConfig {
     RenderingAlgorithm algorithm = RenderingAlgorithm::PATH_TRACING;
@@ -128,6 +144,9 @@ struct RenderConfig {
     // Additional rendering parameters
     int samplesPerPixel = 10;
     bool verbose = false; // Progress bar display
+    
+    // Lighting decomposition configuration
+    LightingDecomposition lightingDecomposition = LightingDecomposition::NONE;
     
     // Tone mapping configuration
     ToneMappingType toneMapping = ToneMappingType::NONE;

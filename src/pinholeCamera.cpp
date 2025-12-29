@@ -52,6 +52,37 @@ PinholeCamera::PinholeCamera(const Point& origin, const Direction& up, const Dir
 // Main unified render method
 Image PinholeCamera::render(const Scene& scene, const RenderConfig& config) const {
     if (config.verbose) std::cout << "Render config: " << config << std::endl;
+    
+    // Handle lighting decomposition
+    if (config.lightingDecomposition != LightingDecomposition::NONE) {
+        std::vector<RGB> directPixels(height * width);
+        std::vector<RGB> indirectPixels(height * width);
+        
+        // Render with lighting decomposition
+        renderRegionWithLightingDecomposition(directPixels, indirectPixels, scene, config);
+        
+        // Select which image(s) to return based on decomposition mode
+        Image resultImage;
+        if (config.lightingDecomposition == LightingDecomposition::DIRECT_ONLY) {
+            resultImage = Image(width, height, directPixels);
+        } else if (config.lightingDecomposition == LightingDecomposition::INDIRECT_ONLY) {
+            resultImage = Image(width, height, indirectPixels);
+        } else {
+            // SEPARATE mode: combine both components
+            std::vector<RGB> combined(height * width);
+            for (size_t i = 0; i < combined.size(); i++) {
+                combined[i] = directPixels[i] + indirectPixels[i];
+            }
+            resultImage = Image(width, height, combined);
+        }
+        
+        if (config.toneMapping != ToneMappingType::NONE)
+            ToneMapping::apply(resultImage, config);
+        
+        return resultImage;
+    }
+    
+    // Standard rendering path
     std::vector<RGB> pixels(height * width);
     Image image;
     if (config.mode == RenderingMode::PARALLEL) {
@@ -86,6 +117,95 @@ void PinholeCamera::renderRegion(std::vector<RGB>& pixels, const Scene& scene, c
             pixels[y * width + x] = strategy->calculatePixelColor(*this, scene, normalizedX, normalizedY, config);
             
             showProgressIfNeeded(config.verbose); // Show progress if verbose mode is enabled
+        }
+    }
+}
+
+void PinholeCamera::renderRegionWithLightingDecomposition(std::vector<RGB>& directPixels, std::vector<RGB>& indirectPixels,
+                                                          const Scene& scene, const RenderConfig& config,
+                                                          int startY, int startX, int endY, int endX) const {
+    endY = (endY == -1) ? height : endY;
+    endX = (endX == -1) ?  width : endX;
+    
+    for (int y = startY; y < endY; y++) {
+        float normalizedY = ((static_cast<float>(y) + 0.5f - (height / 2.0f)) / (height / 2.0f));
+        for (int x = startX; x < endX; x++) {
+            float normalizedX = ((static_cast<float>(x) + 0.5f - (width / 2.0f)) / (width / 2.0f));
+            
+            // Generate ray for this pixel
+            Ray ray = generateRay(normalizedX, normalizedY);
+            
+            // Find first intersection
+            auto intersection = scene.intersect(ray);
+            if (!intersection) {
+                // No intersection - background is indirect
+                directPixels[y * width + x] = RGB(0, 0, 0);
+                indirectPixels[y * width + x] = scene.backgroundColor;
+                showProgressIfNeeded(config.verbose);
+                continue;
+            }
+            
+            const Material& mat = intersection->material;
+            
+            // Direct lighting: Next event estimation for the first intersection
+            RGB direct = scene.nextEventEstimation(*intersection);
+            
+            // Emissive materials contribute to direct
+            RGB emissive = mat.isEmissive() ? mat.emission : RGB(0, 0, 0);
+            direct = direct + emissive;
+            
+            // Indirect lighting: Recursive path tracing
+            RGB indirect(0, 0, 0);
+            if (config.algorithm == RenderingAlgorithm::PATH_TRACING) {
+                const Direction& normal = intersection->normal;
+                const Point& hitP = intersection->point;
+                
+                // Only compute indirect if material has diffuse, specular, or transmittance
+                float pd = mat.p_diffuse;
+                float ps = mat.p_specular;
+                float pt = mat.p_transmittance;
+                float sum = pd + ps + pt;
+                
+                if (sum > 0) {
+                    float r = rand0_1() * sum;
+                    
+                    if (r < pd) {
+                        // Diffuse bounce
+                        Direction wi = randomCosineDirection(normal);
+                        float cosTheta = utils::cosTheta(normal, wi);
+                        Ray newRay(hitP + wi * EPS, wi);
+                        RGB pathRadiance = tracePath(newRay, scene, config.maxBounces - 1);
+                        RGB f = mat.evaluateBSDF(wi, -ray.direction, normal);
+                        indirect = pathRadiance * f * cosTheta / pd;
+                    } else if (r < pd + ps) {
+                        // Specular bounce
+                        Direction reflection = ray.direction.specular(normal);
+                        Ray newRay(hitP + reflection * EPS, reflection);
+                        RGB reflectedRadiance = tracePath(newRay, scene, config.maxBounces - 1);
+                        indirect = reflectedRadiance * mat.getSpecular() / ps;
+                    } else if (r < pd + ps + pt) {
+                        // Transmission
+                        auto transmitOpt = mat.refract(ray.direction, normal);
+                        if (transmitOpt.has_value()) {
+                            Direction transmit = transmitOpt->normalize();
+                            Ray newRay(hitP + transmit * EPS, transmit);
+                            RGB ret = tracePath(newRay, scene, config.maxBounces - 1);
+                            indirect = ret * mat.getTransmittance() / pt;
+                        } else {
+                            // Total internal reflection
+                            Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
+                            Ray newRay(hitP + normal * EPS, refl);
+                            RGB ret = tracePath(newRay, scene, config.maxBounces - 1);
+                            indirect = ret * mat.getSpecular() / pt;
+                        }
+                    }
+                }
+            }
+            
+            directPixels[y * width + x] = direct;
+            indirectPixels[y * width + x] = indirect;
+            
+            showProgressIfNeeded(config.verbose);
         }
     }
 }
