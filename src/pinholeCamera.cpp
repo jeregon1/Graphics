@@ -132,78 +132,91 @@ void PinholeCamera::renderRegionWithLightingDecomposition(std::vector<RGB>& dire
         for (int x = startX; x < endX; x++) {
             float normalizedX = ((static_cast<float>(x) + 0.5f - (width / 2.0f)) / (width / 2.0f));
             
-            // Generate ray for this pixel
-            Ray ray = generateRay(normalizedX, normalizedY);
+            // Accumulate multiple samples per pixel
+            RGB accumulatedDirect(0, 0, 0);
+            RGB accumulatedIndirect(0, 0, 0);
             
-            // Find first intersection
-            auto intersection = scene.intersect(ray);
-            if (!intersection) {
-                // No intersection - background is indirect
-                directPixels[y * width + x] = RGB(0, 0, 0);
-                indirectPixels[y * width + x] = scene.backgroundColor;
-                showProgressIfNeeded(config.verbose);
-                continue;
-            }
-            
-            const Material& mat = intersection->material;
-            
-            // Direct lighting: Next event estimation for the first intersection
-            RGB direct = scene.nextEventEstimation(*intersection);
-            
-            // Emissive materials contribute to direct
-            RGB emissive = mat.isEmissive() ? mat.emission : RGB(0, 0, 0);
-            direct = direct + emissive;
-            
-            // Indirect lighting: Recursive path tracing
-            RGB indirect(0, 0, 0);
-            if (config.algorithm == RenderingAlgorithm::PATH_TRACING) {
-                const Direction& normal = intersection->normal;
-                const Point& hitP = intersection->point;
+            for (int sample = 0; sample < config.samplesPerPixel; sample++) {
+                // Add random offset to pixel coordinates for anti-aliasing
+                float x_offset = normalizedX + (rand0_1() - 0.5f) * pixelSizeX;
+                float y_offset = normalizedY + (rand0_1() - 0.5f) * pixelSizeY;
                 
-                // Only compute indirect if material has diffuse, specular, or transmittance
-                float pd = mat.p_diffuse;
-                float ps = mat.p_specular;
-                float pt = mat.p_transmittance;
-                float sum = pd + ps + pt;
+                // Generate ray for this sample
+                Ray ray = generateRay(x_offset, y_offset);
                 
-                if (sum > 0) {
-                    float r = rand0_1() * sum;
+                // Find first intersection
+                auto intersection = scene.intersect(ray);
+                if (!intersection) {
+                    // No intersection - background is indirect
+                    accumulatedDirect += RGB(0, 0, 0);
+                    accumulatedIndirect += scene.backgroundColor;
+                    continue;
+                }
+                
+                const Material& mat = intersection->material;
+                
+                // Direct lighting: Next event estimation for the first intersection
+                RGB direct = scene.nextEventEstimation(*intersection);
+                
+                // Emissive materials contribute to direct
+                RGB emissive = mat.isEmissive() ? mat.emission : RGB(0, 0, 0);
+                direct = direct + emissive;
+                
+                // Indirect lighting: Recursive path tracing
+                RGB indirect(0, 0, 0);
+                if (config.algorithm == RenderingAlgorithm::PATH_TRACING) {
+                    const Direction& normal = intersection->normal;
+                    const Point& hitP = intersection->point;
                     
-                    if (r < pd) {
-                        // Diffuse bounce
-                        Direction wi = randomCosineDirection(normal);
-                        float cosTheta = utils::cosTheta(normal, wi);
-                        Ray newRay(hitP + wi * EPS, wi);
-                        RGB pathRadiance = tracePath(newRay, scene, config.maxBounces - 1);
-                        RGB f = mat.evaluateBSDF(wi, -ray.direction, normal);
-                        indirect = pathRadiance * f * cosTheta / pd;
-                    } else if (r < pd + ps) {
-                        // Specular bounce
-                        Direction reflection = ray.direction.specular(normal);
-                        Ray newRay(hitP + reflection * EPS, reflection);
-                        RGB reflectedRadiance = tracePath(newRay, scene, config.maxBounces - 1);
-                        indirect = reflectedRadiance * mat.getSpecular() / ps;
-                    } else if (r < pd + ps + pt) {
-                        // Transmission
-                        auto transmitOpt = mat.refract(ray.direction, normal);
-                        if (transmitOpt.has_value()) {
-                            Direction transmit = transmitOpt->normalize();
-                            Ray newRay(hitP + transmit * EPS, transmit);
-                            RGB ret = tracePath(newRay, scene, config.maxBounces - 1);
-                            indirect = ret * mat.getTransmittance() / pt;
-                        } else {
-                            // Total internal reflection
-                            Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
-                            Ray newRay(hitP + normal * EPS, refl);
-                            RGB ret = tracePath(newRay, scene, config.maxBounces - 1);
-                            indirect = ret * mat.getSpecular() / pt;
+                    // Only compute indirect if material has diffuse, specular, or transmittance
+                    float pd = mat.p_diffuse;
+                    float ps = mat.p_specular;
+                    float pt = mat.p_transmittance;
+                    float sum = pd + ps + pt;
+                    
+                    if (sum > 0) {
+                        float r = rand0_1() * sum;
+                        
+                        if (r < pd) {
+                            // Diffuse bounce
+                            Direction wi = randomCosineDirection(normal);
+                            float cosTheta = utils::cosTheta(normal, wi);
+                            Ray newRay(hitP + wi * EPS, wi);
+                            RGB pathRadiance = tracePath(newRay, scene, config.maxBounces - 1);
+                            RGB f = mat.evaluateBSDF(wi, -ray.direction, normal);
+                            indirect = pathRadiance * f * cosTheta / pd;
+                        } else if (r < pd + ps) {
+                            // Specular bounce
+                            Direction reflection = ray.direction.specular(normal);
+                            Ray newRay(hitP + reflection * EPS, reflection);
+                            RGB reflectedRadiance = tracePath(newRay, scene, config.maxBounces - 1);
+                            indirect = reflectedRadiance * mat.getSpecular() / ps;
+                        } else if (r < pd + ps + pt) {
+                            // Transmission
+                            auto transmitOpt = mat.refract(ray.direction, normal);
+                            if (transmitOpt.has_value()) {
+                                Direction transmit = transmitOpt->normalize();
+                                Ray newRay(hitP + transmit * EPS, transmit);
+                                RGB ret = tracePath(newRay, scene, config.maxBounces - 1);
+                                indirect = ret * mat.getTransmittance() / pt;
+                            } else {
+                                // Total internal reflection
+                                Direction refl = (ray.direction - normal * 2 * ray.direction.dot(normal)).normalize();
+                                Ray newRay(hitP + normal * EPS, refl);
+                                RGB ret = tracePath(newRay, scene, config.maxBounces - 1);
+                                indirect = ret * mat.getSpecular() / pt;
+                            }
                         }
                     }
                 }
+                
+                accumulatedDirect += direct;
+                accumulatedIndirect += indirect;
             }
             
-            directPixels[y * width + x] = direct;
-            indirectPixels[y * width + x] = indirect;
+            // Average the accumulated samples
+            directPixels[y * width + x] = accumulatedDirect / config.samplesPerPixel;
+            indirectPixels[y * width + x] = accumulatedIndirect / config.samplesPerPixel;
             
             showProgressIfNeeded(config.verbose);
         }

@@ -1,0 +1,48 @@
+=== Bilateral Filter Separation Test (Optimized) ===
+Warning: Material properties out of range. Auto-normalized:
+  diffuse: 1 1 1
+  specular: 0 0 0
+  transmittance: 0 0 0
+Warning: Material properties out of range. Auto-normalized:
+  diffuse: 1 0 0
+  specular: 0 0 0
+  transmittance: 0 0 0
+Warning: Material properties out of range. Auto-normalized:
+  diffuse: 0 1 0
+  specular: 0 0 0
+  transmittance: 0 0 0
+
+[RENDERING] Starting adaptive sampling strategy...
+  [1/3] Rendering direct lighting (32 spp)...
+  [2/3] Rendering indirect lighting (64 spp)...
+  [3/3] Rendering combined image (64 spp)...
+Saved: test_outputs/bilateral/separation_direct.ppm
+Saved: test_outputs/bilateral/separation_indirect.ppm
+
+[FILTERING] Applying bilateral filters...
+Saved: test_outputs/bilateral/separation_full_filtered.ppm
+Saved: test_outputs/bilateral/separation_combined_filtered.ppm
+
+======================================================================
+=== RESULTS ===
+======================================================================
+
+[RENDERING TIMES]
+  Direct lighting (32 spp):        Part of total
+  Indirect lighting (64 spp):      Part of total
+  Full combined (64 spp):         Part of total
+  Total rendering time:               23633.4 ms
+
+[FILTERING TIMES]
+  Full bilateral filter:              Included in total
+  Separate bilateral filters:         Included in total
+  Total filtering time:               1314.4 ms
+
+[IMAGE QUALITY - MSE]
+  Direct component MSE vs full:       0.011583
+  Indirect component MSE vs full:     0.106720
+  Full filtered vs separated filtered:0.001984
+
+[ANALYSIS]
+  ✓ Separated filtering produces visually equivalent results (MSE < 0.01)
+======================================================================

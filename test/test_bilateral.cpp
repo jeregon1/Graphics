@@ -10,6 +10,7 @@
 #include "../include/object3D.hpp"
 #include "../include/render_config.hpp"
 #include "../include/geometry.hpp"
+#include "../include/toneMapping.hpp"
 
 const std::string OUTPUT_DIR = "test_outputs/";
 
@@ -70,7 +71,7 @@ void testBilateralFilter(const Image& original) {
     
     // Bilateral filter parameters
     // σd (sigma_space) - spatial parameter, controls spatial spread
-    const float sigma_space = 3.0f;
+    const float sigma_space = 2.0f;
     
     // σr (sigma_color) - range parameter, controls color sensitivity
     // The image values are in linear color space (not clamped to [0-255])
@@ -90,6 +91,9 @@ void testBilateralFilter(const Image& original) {
         Image dummy;  // Create temporary instance since bilateralFilter is not static
         Image filtered = dummy.bilateralFilter(original, sigma_space, sigma_colors[i]);
         
+        // Apply gamma correction for better visibility
+        ToneMapping::gamma(filtered, 2.2f);
+        
         std::string filename = OUTPUT_DIR + "bilateral_" + color_labels[i] + ".ppm";
         filtered.writePPM(filename);
         std::cout << "Saved: " << filename << std::endl;
@@ -100,11 +104,11 @@ void testBilateralFilter(const Image& original) {
     
     std::cout << "Bilateral filter test completed." << std::endl;
     std::cout << "Files generated:" << std::endl;
-    std::cout << "  - bilateral_small.ppm (sigma_color=2.0, sigma_space=1.5)" << std::endl;
-    std::cout << "  - bilateral_medium.ppm (sigma_color=5.0, sigma_space=1.5)" << std::endl;
-    std::cout << "  - bilateral_large.ppm (sigma_color=10.0, sigma_space=1.5)" << std::endl;
-    std::cout << "\nNote: Larger sigma_color values preserve more color differences" << std::endl;
-    std::cout << "      and result in less smoothing across color boundaries." << std::endl;
+    std::cout << "  - bilateral_small.ppm (sigma_color=0.02, sigma_space=2.0)" << std::endl;
+    std::cout << "  - bilateral_medium.ppm (sigma_color=0.08, sigma_space=2.0)" << std::endl;
+    std::cout << "  - bilateral_large.ppm (sigma_color=0.2, sigma_space=2.0)" << std::endl;
+    std::cout << "\nNote: Larger sigma_color values smooth more across color differences" << std::endl;
+    std::cout << "      while smaller values preserve edges more aggressively." << std::endl;
 }
 
 void testGaussianBlur(const Image& original) {
@@ -122,6 +126,9 @@ void testGaussianBlur(const Image& original) {
         std::cout << "Applying Gaussian blur with sigma = " << sigmas[i] << std::endl;
         Image dummy;  // Create temporary instance since gaussianBlur is not static
         Image filtered = dummy.gaussianBlur(original, sigmas[i]);
+        
+        // Apply gamma correction for better visibility
+        ToneMapping::gamma(filtered, 2.2f);
         
         std::string filename = OUTPUT_DIR + "gaussian_blur_" + sigma_labels[i] + ".ppm";
         filtered.writePPM(filename);
@@ -150,24 +157,30 @@ void testLightingDecomposition(const Scene& scene, const PinholeCamera& camera) 
     RenderConfig directConfig(RenderingAlgorithm::PATH_TRACING, 10, RenderingMode::SEQUENTIAL);
     directConfig.lightingDecomposition = LightingDecomposition::DIRECT_ONLY;
     Image directImage = camera.render(scene, directConfig);
-    directImage.writePPM(OUTPUT_DIR + "lighting_direct.ppm");
-    std::cout << "    Saved: lighting_direct.ppm" << std::endl;
+    Image directImageTM = directImage;  // Copy for tone mapping
+    ToneMapping::gamma(directImageTM, 2.2f);
+    directImageTM.writePPM(OUTPUT_DIR + "lighting_direct.ppm");
+    std::cout << "    Saved: lighting_direct.ppm (tone-mapped)" << std::endl;
     
     // Render indirect lighting only
     std::cout << "  - Rendering indirect lighting..." << std::endl;
     RenderConfig indirectConfig(RenderingAlgorithm::PATH_TRACING, 10, RenderingMode::SEQUENTIAL);
     indirectConfig.lightingDecomposition = LightingDecomposition::INDIRECT_ONLY;
     Image indirectImage = camera.render(scene, indirectConfig);
-    indirectImage.writePPM(OUTPUT_DIR + "lighting_indirect_nofilter.ppm");
-    std::cout << "    Saved: lighting_indirect_nofilter.ppm (unfiltered)" << std::endl;
+    Image indirectImageTM = indirectImage;  // Copy for tone mapping
+    ToneMapping::gamma(indirectImageTM, 2.2f);
+    indirectImageTM.writePPM(OUTPUT_DIR + "lighting_indirect_nofilter.ppm");
+    std::cout << "    Saved: lighting_indirect_nofilter.ppm (unfiltered, tone-mapped)" << std::endl;
     
     // Apply bilateral filter to indirect lighting
     std::cout << "  - Applying bilateral filter to indirect lighting..." << std::endl;
     Image dummy;
     // Using small parameters for subtle filtering (less blur)
     Image indirectFiltered = dummy.bilateralFilter(indirectImage, 3.0f, 0.2f);
-    indirectFiltered.writePPM(OUTPUT_DIR + "lighting_indirect_filtered.ppm");
-    std::cout << "    Saved: lighting_indirect_filtered.ppm (sigma_space=3.0, sigma_color=0.2)" << std::endl;
+    Image indirectFilteredTM = indirectFiltered;  // Copy for tone mapping
+    ToneMapping::gamma(indirectFilteredTM, 2.2f);
+    indirectFilteredTM.writePPM(OUTPUT_DIR + "lighting_indirect_filtered.ppm");
+    std::cout << "    Saved: lighting_indirect_filtered.ppm (sigma_space=3.0, sigma_color=0.2, tone-mapped)" << std::endl;
     
     // Combine direct + filtered indirect
     std::cout << "  - Combining direct + filtered indirect lighting..." << std::endl;
@@ -176,8 +189,9 @@ void testLightingDecomposition(const Scene& scene, const PinholeCamera& camera) 
         combined[i] = directImage.pixels[i] + indirectFiltered.pixels[i];
     }
     Image combinedImage(directImage.width, directImage.height, combined);
+    ToneMapping::gamma(combinedImage, 2.2f);
     combinedImage.writePPM(OUTPUT_DIR + "lighting_combined_filtered.ppm");
-    std::cout << "    Saved: lighting_combined_filtered.ppm (direct + filtered indirect)" << std::endl;
+    std::cout << "    Saved: lighting_combined_filtered.ppm (direct + filtered indirect, tone-mapped)" << std::endl;
     
     // For comparison, also create unfiltered combined
     std::cout << "  - Creating unfiltered combined image for comparison..." << std::endl;
@@ -186,8 +200,9 @@ void testLightingDecomposition(const Scene& scene, const PinholeCamera& camera) 
         combinedUnfiltered[i] = directImage.pixels[i] + indirectImage.pixels[i];
     }
     Image combinedUnfilteredImage(directImage.width, directImage.height, combinedUnfiltered);
+    ToneMapping::gamma(combinedUnfilteredImage, 2.2f);
     combinedUnfilteredImage.writePPM(OUTPUT_DIR + "lighting_combined_unfiltered.ppm");
-    std::cout << "    Saved: lighting_combined_unfiltered.ppm (direct + unfiltered indirect)" << std::endl;
+    std::cout << "    Saved: lighting_combined_unfiltered.ppm (direct + unfiltered indirect, tone-mapped)" << std::endl;
     
     // Compare filtering effect
     std::cout << "\nFiltering effect analysis:" << std::endl;
@@ -226,11 +241,11 @@ void testLightingDecomposition(const Scene& scene, const PinholeCamera& camera) 
     
     std::cout << "\nLighting decomposition test completed." << std::endl;
     std::cout << "Files generated:" << std::endl;
-    std::cout << "  - lighting_direct.ppm (direct lighting only)" << std::endl;
-    std::cout << "  - lighting_indirect_nofilter.ppm (indirect lighting, unfiltered)" << std::endl;
-    std::cout << "  - lighting_indirect_filtered.ppm (indirect lighting, bilateral filter applied)" << std::endl;
-    std::cout << "  - lighting_combined_unfiltered.ppm (direct + unfiltered indirect)" << std::endl;
-    std::cout << "  - lighting_combined_filtered.ppm (direct + filtered indirect)" << std::endl;
+    std::cout << "  - lighting_direct.ppm (direct lighting only, tone-mapped)" << std::endl;
+    std::cout << "  - lighting_indirect_nofilter.ppm (indirect lighting, unfiltered, tone-mapped)" << std::endl;
+    std::cout << "  - lighting_indirect_filtered.ppm (indirect lighting, bilateral filter applied, tone-mapped)" << std::endl;
+    std::cout << "  - lighting_combined_unfiltered.ppm (direct + unfiltered indirect, tone-mapped)" << std::endl;
+    std::cout << "  - lighting_combined_filtered.ppm (direct + filtered indirect, tone-mapped)" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -271,9 +286,11 @@ int main(int argc, char* argv[]) {
     Image original = camera.render(scene, config);
     std::cout << "Image rendered. Size: " << original.width << "x" << original.height << std::endl;
     
-    // Save the original for reference
-    original.writePPM(OUTPUT_DIR + "filter_test_original.ppm");
-    std::cout << "Original image saved as: filter_test_original.ppm\n" << std::endl;
+    // Save the original for reference (with tone mapping for visibility)
+    Image originalTM = original;  // Copy for tone mapping
+    ToneMapping::gamma(originalTM, 2.2f);
+    originalTM.writePPM(OUTPUT_DIR + "filter_test_original.ppm");
+    std::cout << "Original image saved as: filter_test_original.ppm (tone-mapped)\n" << std::endl;
     
     // Run both filter tests on the same image
     testBilateralFilter(original);
@@ -287,16 +304,16 @@ int main(int argc, char* argv[]) {
     std::cout << "\n=== ALL TESTS COMPLETED ===" << std::endl;
     std::cout << "Images saved to " << OUTPUT_DIR << std::endl;
     std::cout << "Generated files:" << std::endl;
-    std::cout << "  - filter_test_original.ppm (original noisy image)" << std::endl;
-    std::cout << "  - bilateral_small.ppm, bilateral_medium.ppm, bilateral_large.ppm" << std::endl;
-    std::cout << "  - gaussian_blur_small.ppm, gaussian_blur_medium.ppm, gaussian_blur_large.ppm" << std::endl;
+    std::cout << "  - filter_test_original.ppm (original noisy image, tone-mapped)" << std::endl;
+    std::cout << "  - bilateral_small.ppm, bilateral_medium.ppm, bilateral_large.ppm (tone-mapped)" << std::endl;
+    std::cout << "  - gaussian_blur_small.ppm, gaussian_blur_medium.ppm, gaussian_blur_large.ppm (tone-mapped)" << std::endl;
     
     if (runDecompositionTest) {
-        std::cout << "  - lighting_direct.ppm (direct lighting only)" << std::endl;
-        std::cout << "  - lighting_indirect_nofilter.ppm (indirect lighting only, unfiltered)" << std::endl;
-        std::cout << "  - lighting_indirect_filtered.ppm (indirect lighting, bilateral filtered)" << std::endl;
-        std::cout << "  - lighting_combined_unfiltered.ppm (direct + unfiltered indirect)" << std::endl;
-        std::cout << "  - lighting_combined_filtered.ppm (direct + filtered indirect)" << std::endl;
+        std::cout << "  - lighting_direct.ppm (direct lighting only, tone-mapped)" << std::endl;
+        std::cout << "  - lighting_indirect_nofilter.ppm (indirect lighting only, unfiltered, tone-mapped)" << std::endl;
+        std::cout << "  - lighting_indirect_filtered.ppm (indirect lighting, bilateral filtered, tone-mapped)" << std::endl;
+        std::cout << "  - lighting_combined_unfiltered.ppm (direct + unfiltered indirect, tone-mapped)" << std::endl;
+        std::cout << "  - lighting_combined_filtered.ppm (direct + filtered indirect, tone-mapped)" << std::endl;
     } else {
         std::cout << "\nTip: Run with '--decompose' or '-d' flag to test lighting decomposition:" << std::endl;
         std::cout << "  ./build/test_bilateral --decompose" << std::endl;
