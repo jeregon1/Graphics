@@ -10,6 +10,13 @@
 #include "constants.hpp"
 #include "material.hpp"
 
+// Structure to return light sampling information
+struct LightSample {
+    Point position;      // Sampled point on the light surface
+    Direction normal;    // Normal at the sampled point
+    RGB emission;        // Light emission at that point
+    float pdf;           // Probability density of sampling that point
+};
 
 struct Intersection {
     float distance;
@@ -41,6 +48,10 @@ public:
     Object3D(const Material& material) : material(material) {}
 
     virtual std::optional<Intersection> intersect(const Ray& ray) const = 0;   
+    
+    // Area light support
+    virtual float area() const { return 0.0f; }  // Default: not an area light
+    virtual std::optional<LightSample> sampleLightPoint() const { return std::nullopt; }
     
     // Accessor for material
     const Material& getMaterial() const { return material; }
@@ -137,6 +148,26 @@ public:
         Object3D(material), base(base), axis(axis.normalize()), radius(radius), height(height) {}
 
     std::optional<Intersection> intersect(const Ray& ray) const;
+
+    std::string toString() const;
+};
+
+// Quad: rectangular area light defined by center and two half-edge vectors
+class Quad : public Object3D {
+public:
+    Point center;
+    Direction u, v;  // Half-edge vectors
+    Direction normal;
+    float area_;
+
+    // Constructor takes center point and two half-edge vectors u, v
+    // The quad spans from center-u-v to center+u+v
+    Quad(const Point& center, const Direction& u, const Direction& v, const Material& material);
+
+    std::optional<Intersection> intersect(const Ray& ray) const;
+    
+    float area() const override { return area_; }
+    std::optional<LightSample> sampleLightPoint() const override;
 
     std::string toString() const;
 };

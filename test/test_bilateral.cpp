@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 #include <memory>
-#include <cmath>
+#include <chrono>
 #include <iomanip>
 
 #include "../include/Image.hpp"
@@ -14,31 +14,60 @@
 
 const std::string OUTPUT_DIR = "test_outputs/";
 
-// Create a test scene with multiple objects for filter demonstration
-Scene createTestScene() {
-    Scene scene(RGB(0.1, 0.1, 0.1)); // Dark background
+// Create Cornell Box with point light and ceiling
+Scene createCornellBoxPointLight() {
+    Scene scene(RGB(0, 0, 0));
+    
+    // Cornell Box dimensions
+    const float boxSize = 2.0f;
     
     // Materials
-    Material redMaterial(RGB(0.8, 0.2, 0.2), RGB(0, 0, 0)); 
-    Material greenMaterial(RGB(0.2, 0.8, 0.2), RGB(0, 0, 0)); 
-    Material blueMaterial(RGB(0.2, 0.2, 0.8), RGB(0, 0, 0)); 
-    Material greyMaterial(RGB(0.5, 0.5, 0.5), RGB(0, 0, 0));
-    Material whiteMaterial(RGB(0.9, 0.9, 0.9), RGB(0, 0, 0));
+    Material whiteMaterial(RGB(0.73, 0.73, 0.73), RGB(0, 0, 0));
+    Material redMaterial(RGB(0.65, 0.05, 0.05), RGB(0, 0, 0));
+    Material greenMaterial(RGB(0.12, 0.45, 0.15), RGB(0, 0, 0));
     
-    // Create multiple spheres at different positions to demonstrate filtering
-    scene.addObject(std::make_shared<Sphere>(Point(-0.6, -0.2, 0.5), 0.3, redMaterial));
-    scene.addObject(std::make_shared<Sphere>(Point(0.0, 0.1, 0.7), 0.25, greenMaterial));
-    scene.addObject(std::make_shared<Sphere>(Point(0.6, -0.1, 0.6), 0.3, blueMaterial));
-    scene.addObject(std::make_shared<Sphere>(Point(-0.2, 0.5, 1.0), 0.2, whiteMaterial));
-    scene.addObject(std::make_shared<Sphere>(Point(0.3, 0.4, 0.8), 0.2, whiteMaterial));
+    // Walls including ceiling
+    scene.addObject(std::make_shared<Plane>(Direction(0, 1, 0), whiteMaterial, boxSize));  // Floor
+    scene.addObject(std::make_shared<Plane>(Direction(0, -1, 0), whiteMaterial, boxSize)); // Ceiling
+    scene.addObject(std::make_shared<Plane>(Direction(0, 0, -1), whiteMaterial, boxSize)); // Back wall
+    scene.addObject(std::make_shared<Plane>(Direction(1, 0, 0), redMaterial, boxSize));    // Left wall (red)
+    scene.addObject(std::make_shared<Plane>(Direction(-1, 0, 0), greenMaterial, boxSize)); // Right wall (green)
     
-    // Floor plane
-    scene.addObject(std::make_shared<Plane>(Direction(0, 1, 0), greyMaterial, 1.5)); 
+    // Add a sphere
+    scene.addObject(std::make_shared<Sphere>(Point(-0.5, -1.3, 0.0), 0.7, whiteMaterial));
     
-    // Lights - multiple light sources for richer illumination
-    scene.addLight(std::make_shared<PointLight>(Point(0, 1.5, 0), RGB(4, 4, 4)));
-    scene.addLight(std::make_shared<PointLight>(Point(-1, 0.8, -0.5), RGB(2, 1.5, 1.5)));
-    scene.addLight(std::make_shared<PointLight>(Point(1, 0.8, -0.5), RGB(1.5, 1.5, 2)));
+    // Point light source at ceiling
+    scene.lights.push_back(std::make_shared<PointLight>(Point(0, 1.9, 0), RGB(15, 15, 15)));
+    
+    return scene;
+}
+
+// Create Cornell Box with area light (emissive ceiling)
+Scene createCornellBoxAreaLight() {
+    Scene scene(RGB(0, 0, 0));
+    
+    // Cornell Box dimensions
+    const float boxSize = 2.0f;
+    
+    // Materials
+    Material whiteMaterial(RGB(0.73, 0.73, 0.73), RGB(0, 0, 0));
+    Material redMaterial(RGB(0.65, 0.05, 0.05), RGB(0, 0, 0));
+    Material greenMaterial(RGB(0.12, 0.45, 0.15), RGB(0, 0, 0));
+    
+    // Emissive material for ceiling (area light)
+    Material emissiveMaterial(RGB(0.73, 0.73, 0.73), RGB(15, 15, 15)); // emission = RGB(15, 15, 15)
+    
+    // Walls with emissive ceiling
+    scene.addObject(std::make_shared<Plane>(Direction(0, 1, 0), whiteMaterial, boxSize));     // Floor
+    scene.addObject(std::make_shared<Plane>(Direction(0, -1, 0), emissiveMaterial, boxSize)); // Ceiling (emissive)
+    scene.addObject(std::make_shared<Plane>(Direction(0, 0, -1), whiteMaterial, boxSize));    // Back wall
+    scene.addObject(std::make_shared<Plane>(Direction(1, 0, 0), redMaterial, boxSize));       // Left wall (red)
+    scene.addObject(std::make_shared<Plane>(Direction(-1, 0, 0), greenMaterial, boxSize));    // Right wall (green)
+    
+    // Add a sphere
+    scene.addObject(std::make_shared<Sphere>(Point(-0.5, -1.3, 0.0), 0.7, whiteMaterial));
+    
+    // No point lights - using emissive ceiling instead
     
     return scene;
 }
@@ -248,76 +277,109 @@ void testLightingDecomposition(const Scene& scene, const PinholeCamera& camera) 
     std::cout << "  - lighting_combined_filtered.ppm (direct + filtered indirect, tone-mapped)" << std::endl;
 }
 
-int main(int argc, char* argv[]) {
-    bool runDecompositionTest = false;
+
+int main() {
+    std::cout << "=== LIGHTING COMPARISON TEST ===" << std::endl;
+    std::cout << "Comparing Point Light vs Area Light convergence\n" << std::endl;
     
-    // Check for command line argument
-    if (argc > 1) {
-        std::string arg = argv[1];
-        if (arg == "--decompose" || arg == "-d") {
-            runDecompositionTest = true;
-        }
+    const int width = 512;
+    const int height = 512;
+    const int samples = 100;
+    
+    // Create camera
+    PinholeCamera camera(Point(0, 0, -4), 50, width, height);
+    
+    // ========== POINT LIGHT RENDERING ==========
+    std::cout << "========================================" << std::endl;
+    std::cout << "Rendering with POINT LIGHT" << std::endl;
+    std::cout << "========================================" << std::endl;
+    
+    Scene scenePointLight = createCornellBoxPointLight();
+    std::cout << "Scene created with point light at ceiling" << std::endl;
+    std::cout << "Rendering with " << samples << " samples per pixel..." << std::endl;
+    
+    auto startPointLight = std::chrono::high_resolution_clock::now();
+    
+    RenderConfig configPointLight;
+    configPointLight.algorithm = RenderingAlgorithm::PATH_TRACING;
+    configPointLight.samplesPerPixel = samples;
+    
+    Image imagePointLight = camera.render(scenePointLight, configPointLight);
+    
+    auto endPointLight = std::chrono::high_resolution_clock::now();
+    auto durationPointLight = std::chrono::duration_cast<std::chrono::milliseconds>(endPointLight - startPointLight);
+    
+    std::cout << "Rendering completed in " << std::fixed << std::setprecision(2) 
+              << durationPointLight.count() / 1000.0 << " seconds" << std::endl;
+    
+    // Apply tone mapping and save
+    ToneMapping::gamma(imagePointLight, 2.2f);
+    imagePointLight.writePPM(OUTPUT_DIR + "point_light_cornell.ppm");
+    std::cout << "Saved: point_light_cornell.ppm\n" << std::endl;
+    
+    // ========== AREA LIGHT RENDERING ==========
+    std::cout << "========================================" << std::endl;
+    std::cout << "Rendering with AREA LIGHT (Emissive Ceiling)" << std::endl;
+    std::cout << "========================================" << std::endl;
+    
+    Scene sceneAreaLight = createCornellBoxAreaLight();
+    std::cout << "Scene created with emissive ceiling (area light)" << std::endl;
+    std::cout << "Rendering with " << samples << " samples per pixel..." << std::endl;
+    
+    auto startAreaLight = std::chrono::high_resolution_clock::now();
+    
+    RenderConfig configAreaLight;
+    configAreaLight.algorithm = RenderingAlgorithm::PATH_TRACING;
+    configAreaLight.samplesPerPixel = samples;
+    
+    Image imageAreaLight = camera.render(sceneAreaLight, configAreaLight);
+    
+    auto endAreaLight = std::chrono::high_resolution_clock::now();
+    auto durationAreaLight = std::chrono::duration_cast<std::chrono::milliseconds>(endAreaLight - startAreaLight);
+    
+    std::cout << "Rendering completed in " << std::fixed << std::setprecision(2) 
+              << durationAreaLight.count() / 1000.0 << " seconds" << std::endl;
+    
+    // Apply tone mapping and save
+    ToneMapping::gamma(imageAreaLight, 2.2f);
+    imageAreaLight.writePPM(OUTPUT_DIR + "area_light_cornell.ppm");
+    std::cout << "Saved: area_light_cornell.ppm\n" << std::endl;
+    
+    // ========== COMPARISON RESULTS ==========
+    std::cout << "========================================" << std::endl;
+    std::cout << "CONVERGENCE COMPARISON" << std::endl;
+    std::cout << "========================================" << std::endl;
+    std::cout << "Configuration: " << width << "x" << height << " @ " << samples << " spp" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Point Light:" << std::endl;
+    std::cout << "  Time: " << std::fixed << std::setprecision(2) 
+              << durationPointLight.count() / 1000.0 << " seconds" << std::endl;
+    std::cout << "  Speed: " << std::fixed << std::setprecision(1)
+              << (width * height * samples) / (durationPointLight.count() / 1000.0) 
+              << " samples/second" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Area Light (Emissive Ceiling):" << std::endl;
+    std::cout << "  Time: " << std::fixed << std::setprecision(2) 
+              << durationAreaLight.count() / 1000.0 << " seconds" << std::endl;
+    std::cout << "  Speed: " << std::fixed << std::setprecision(1)
+              << (width * height * samples) / (durationAreaLight.count() / 1000.0) 
+              << " samples/second" << std::endl;
+    std::cout << std::endl;
+    
+    double speedRatio = static_cast<double>(durationPointLight.count()) / durationAreaLight.count();
+    if (speedRatio > 1.0) {
+        std::cout << "Area light was " << std::fixed << std::setprecision(2) 
+                  << speedRatio << "x FASTER than point light" << std::endl;
+    } else {
+        std::cout << "Point light was " << std::fixed << std::setprecision(2) 
+                  << (1.0 / speedRatio) << "x FASTER than area light" << std::endl;
     }
     
-    std::cout << "=== FILTER TESTS (BILATERAL & GAUSSIAN BLUR) ===" << std::endl;
-    
-    // Load Cornell Box scene from YAML
-    std::cout << "Loading Cornell Box scene from YAML..." << std::endl;
-    auto sceneResult = Scene::fromYAML("scenes/cornell_box.yaml");
-    
-    if (!sceneResult) {
-        std::cerr << "Error: Could not load cornell_box.yaml" << std::endl;
-        return 1;
-    }
-    
-    Scene scene = std::move(sceneResult->first);
-    PinholeCamera camera = sceneResult->second.has_value() ? sceneResult->second.value() 
-                                                            : PinholeCamera(Point(0, 0, -2.5), 35, 512, 512);
-    
-    std::cout << "Cornell Box scene loaded successfully." << std::endl << std::endl;
-    
-    std::cout << "Rendering a single test image..." << std::endl << std::endl;
-    
-    // Render a single image with low samples to see filtering effects
-    std::cout << "Generating test image with path tracing (low samples)..." << std::endl;
-    RenderConfig config(RenderingAlgorithm::PATH_TRACING, 10, RenderingMode::SEQUENTIAL);
-    
-    std::cout << "Rendering with " << config.samplesPerPixel << " samples per pixel..." << std::endl;
-    Image original = camera.render(scene, config);
-    std::cout << "Image rendered. Size: " << original.width << "x" << original.height << std::endl;
-    
-    // Save the original for reference (with tone mapping for visibility)
-    Image originalTM = original;  // Copy for tone mapping
-    ToneMapping::gamma(originalTM, 2.2f);
-    originalTM.writePPM(OUTPUT_DIR + "filter_test_original.ppm");
-    std::cout << "Original image saved as: filter_test_original.ppm (tone-mapped)\n" << std::endl;
-    
-    // Run both filter tests on the same image
-    testBilateralFilter(original);
-    testGaussianBlur(original);
-    
-    // Optional: Run lighting decomposition test
-    if (runDecompositionTest) {
-        testLightingDecomposition(scene, camera);
-    }
-    
-    std::cout << "\n=== ALL TESTS COMPLETED ===" << std::endl;
+    std::cout << "\n=== TEST COMPLETED ===" << std::endl;
     std::cout << "Images saved to " << OUTPUT_DIR << std::endl;
     std::cout << "Generated files:" << std::endl;
-    std::cout << "  - filter_test_original.ppm (original noisy image, tone-mapped)" << std::endl;
-    std::cout << "  - bilateral_small.ppm, bilateral_medium.ppm, bilateral_large.ppm (tone-mapped)" << std::endl;
-    std::cout << "  - gaussian_blur_small.ppm, gaussian_blur_medium.ppm, gaussian_blur_large.ppm (tone-mapped)" << std::endl;
-    
-    if (runDecompositionTest) {
-        std::cout << "  - lighting_direct.ppm (direct lighting only, tone-mapped)" << std::endl;
-        std::cout << "  - lighting_indirect_nofilter.ppm (indirect lighting only, unfiltered, tone-mapped)" << std::endl;
-        std::cout << "  - lighting_indirect_filtered.ppm (indirect lighting, bilateral filtered, tone-mapped)" << std::endl;
-        std::cout << "  - lighting_combined_unfiltered.ppm (direct + unfiltered indirect, tone-mapped)" << std::endl;
-        std::cout << "  - lighting_combined_filtered.ppm (direct + filtered indirect, tone-mapped)" << std::endl;
-    } else {
-        std::cout << "\nTip: Run with '--decompose' or '-d' flag to test lighting decomposition:" << std::endl;
-        std::cout << "  ./build/test_bilateral --decompose" << std::endl;
-    }
+    std::cout << "  - point_light_cornell.ppm" << std::endl;
+    std::cout << "  - area_light_cornell.ppm" << std::endl;
     
     return 0;
 }

@@ -9,6 +9,8 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>
+#include <cstdlib>  // For rand()
+#include <cmath>
 
 using namespace std;
 
@@ -95,7 +97,7 @@ optional<Intersection> Plane::intersect(const Ray& r) const {
     float denominator = normal.dot(r.direction);
     
     // If the ray is parallel to the plane, there is no intersection
-    if (abs(denominator) < EPS)
+    if (std::fabs(denominator) < EPS)
         return nullopt;
 
     Point base = Point(normal.x, normal.y, normal.z) * distance; // Point of the plane
@@ -138,7 +140,7 @@ optional<Intersection> Triangle::intersect(const Ray& r) const {
     float a_det = edge1.dot(h);
 
     // Check if the ray is parallel to the triangle
-    if (abs(a_det) < EPS)
+    if (std::fabs(a_det) < EPS)
         return nullopt;
 
     float f = 1.0f / a_det;
@@ -186,7 +188,7 @@ optional<Intersection> Cone::intersect(const Ray& ray) const {
     
     // 1) Build orthonormal basis (u,v,w) where w = cone axis
     Direction w = axis.normalize();
-    Direction tmp = fabs(w.x) < 0.9f ? Direction(1,0,0) : Direction(0,1,0);
+    Direction tmp = std::fabs(w.x) < 0.9f ? Direction(1,0,0) : Direction(0,1,0);
     Direction u = w.cross(tmp).normalize();
     Direction v = w.cross(u);
 
@@ -197,7 +199,7 @@ optional<Intersection> Cone::intersect(const Ray& ray) const {
 
     // 3) Intersect with base cap (plane y=0)
     float t_base = -1.0f;
-    if (fabs(ld.y) > EPS) {
+    if (std::fabs(ld.y) > EPS) {
         float t = -lo.y / ld.y;
         if (t > EPS) {
             Point p_base = lo + ld * t;
@@ -278,7 +280,7 @@ optional<Intersection> Cylinder::intersect(const Ray& ray) const {
 
     // 1) Build orthonormal basis (u,v,w) where w is the cylinder axis
     Direction w = axis.normalize();
-    Direction tmp = (fabs(w.x) < 0.9f) ? Direction(1, 0, 0) : Direction(0, 1, 0);
+    Direction tmp = (std::fabs(w.x) < 0.9f) ? Direction(1, 0, 0) : Direction(0, 1, 0);
     Direction u = w.cross(tmp).normalize();
     Direction v = w.cross(u);
 
@@ -289,7 +291,7 @@ optional<Intersection> Cylinder::intersect(const Ray& ray) const {
 
     // 3) Intersection with caps
     float t_base = -1.0f, t_top = -1.0f;
-    if (fabs(ld.y) > EPS) { // Ray is not parallel to the caps
+    if (std::fabs(ld.y) > EPS) { // Ray is not parallel to the caps
         // Base cap (y=0)
         float t0 = -lo.y / ld.y;
         if (t0 > EPS) {
@@ -365,6 +367,77 @@ string Cylinder::toString() const {
         << "  Axis: " << axis << "\n"
         << "  Radius: " << radius << "\n"
         << "  Height: " << height << "\n"
+        << "  " << material.toString();
+    return oss.str();
+}
+
+/********
+ * Quad *
+ ********/
+
+Quad::Quad(const Point& center, const Direction& u, const Direction& v, const Material& material)
+    : Object3D(material), center(center), u(u), v(v) {
+    // Calculate normal from cross product of the two half-edge vectors
+    normal = u.cross(v).normalize();
+    // Area of the quad: 4 * |u × v| (since u and v are half-edges)
+    area_ = 4.0f * u.cross(v).mod();
+}
+
+optional<Intersection> Quad::intersect(const Ray& ray) const {
+    // First intersect with the plane defined by the quad
+    float denom = ray.direction.dot(normal);
+    if (std::fabs(denom) < EPS) return nullopt;  // Ray parallel to plane
+    
+    float t = (center - ray.origin).dot(normal) / denom;
+    if (t < EPS) return nullopt;  // Behind the ray origin
+    
+    Point hitPoint = ray.at(t);
+    
+    // Check if hit point is inside the quad bounds
+    // Express hit point in quad's local coordinates
+    Direction toHit = hitPoint - center;
+    
+    // Project onto u and v axes
+    float du = toHit.dot(u) / u.dot(u);  // Component along u
+    float dv = toHit.dot(v) / v.dot(v);  // Component along v
+    
+    // Check if within bounds [-1, 1] for both directions (since u,v are half-edges)
+    if (du < -1.0f || du > 1.0f || dv < -1.0f || dv > 1.0f)
+        return nullopt;
+    
+    // Determine normal direction (flip if ray hits from behind)
+    Direction outwardNormal = normal;
+    if (ray.direction.dot(normal) > 0)
+        outwardNormal = -normal;
+    
+    return Intersection(t, hitPoint, outwardNormal, material);
+}
+
+optional<LightSample> Quad::sampleLightPoint() const {
+    // Uniform random sampling over the quad surface
+    // Generate random coordinates in [-1, 1] range for both directions
+    float s = -1.0f + 2.0f * (rand() / (float)RAND_MAX);
+    float t = -1.0f + 2.0f * (rand() / (float)RAND_MAX);
+    
+    Point sampledPoint = center + u * s + v * t;
+    
+    LightSample sample;
+    sample.position = sampledPoint;
+    sample.normal = normal;
+    sample.emission = material.emission;
+    sample.pdf = 1.0f / area_;  // Uniform sampling
+    
+    return sample;
+}
+
+string Quad::toString() const {
+    ostringstream oss;
+    oss << "- Quad:\n"
+        << "  Center: " << center << "\n"
+        << "  Half-edge U: " << u << "\n"
+        << "  Half-edge V: " << v << "\n"
+        << "  Normal: " << normal << "\n"
+        << "  Area: " << area_ << "\n"
         << "  " << material.toString();
     return oss.str();
 }

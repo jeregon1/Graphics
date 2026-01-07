@@ -13,6 +13,7 @@
 #include <fstream>
 #include <algorithm>
 #include <tuple>
+#include <cmath>  // For std::sqrt
 #include <iostream>
 
 using namespace std;
@@ -55,6 +56,8 @@ RGB Scene::nextEventEstimation(const Intersection& inter) const {
         return inter.material.getDiffuse(); // No lights in the scene
     
     RGB color = RGB(0, 0, 0);
+    
+    // Sample point lights
     for (const auto& light : lights) {
         Direction lightToObjectDir = (light->center - inter.point);
         float lightToObjectDistance = lightToObjectDir.mod();
@@ -78,6 +81,53 @@ RGB Scene::nextEventEstimation(const Intersection& inter) const {
         RGB brdf = inter.material.evaluateBSDF(lightToObjectDir, -shadowRay.direction, inter.normal);
         color += powerByDistance * brdf * cosTheta; 
     }
+    
+    // Sample area lights (emissive objects with finite area)
+    for (const auto& object : objects) {
+        if (!object->getMaterial().isEmissive() || object->area() <= 0.0f)
+            continue;
+        
+        // Sample a point on the area light
+        auto lightSample = object->sampleLightPoint();
+        if (!lightSample.has_value())
+            continue;
+        
+        const auto& ls = lightSample.value();
+        
+        // Direction from surface to light sample
+        Direction toLight = ls.position - inter.point;
+        float dist = toLight.mod();
+        toLight = toLight.normalize();
+        
+        // Check if surface faces the light
+        float cosSurface = inter.normal.dot(toLight);
+        if (cosSurface <= 0.0f)
+            continue;
+        
+        // Check if light surface faces the intersection point
+        float cosLight = ls.normal.dot(-toLight);
+        if (cosLight <= 0.0f)
+            continue;
+        
+        // Cast shadow ray
+        Point shadowOrigin = inter.point + inter.normal * EPS;
+        Ray shadowRay(shadowOrigin, toLight);
+        
+        bool obstruction = intersectAny(shadowRay, dist - EPS);
+        if (obstruction)
+            continue;
+        
+        // Calculate geometric term: (cos_surface * cos_light) / dist^2
+        float dist2 = dist * dist;
+        float geometricTerm = (cosSurface * cosLight) / (dist2 * ls.pdf);
+        
+        // Evaluate BRDF
+        RGB brdf = inter.material.evaluateBSDF(toLight, -shadowRay.direction, inter.normal);
+        
+        // Add contribution from area light
+        color += ls.emission * brdf * geometricTerm;
+    }
+    
     return color;
 }
 
