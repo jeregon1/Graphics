@@ -134,8 +134,23 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             }
         } else if (key == "tone_mapping" || key == "toneMapping") {
             std::string value;
+            float param = 0.0f;  // Optional parameter (gamma, key, max, etc)
             if (lineStream >> value) {
                 config.toneMapping = parseToneMapping(value);
+                // Try to read optional parameter (gamma, key, max, etc)
+                if (lineStream >> param) {
+                    // Assign parameter based on tone mapping type
+                    if (config.toneMapping == ToneMappingType::GAMMA ||
+                        config.toneMapping == ToneMappingType::EQUALIZATION_GAMMA ||
+                        config.toneMapping == ToneMappingType::CLAMP_GAMMA) {
+                        config.toneMappingGamma = param;
+                    } else if (config.toneMapping == ToneMappingType::REINHARD) {
+                        config.toneMappingKey = param;
+                    } else if (config.toneMapping == ToneMappingType::CLAMP ||
+                               config.toneMapping == ToneMappingType::EQUALIZATION_CLAMP) {
+                        config.toneMappingMax = param;
+                    }
+                }
             }
         } else if (key == "tone_mapping_max" || key == "toneMappingMax") {
             float value;
@@ -194,10 +209,20 @@ std::optional<RenderConfig> RenderConfig::fromYAML(const std::string& filename) 
             if (lineStream >> value) {
                 config.verbose = (value == "true" || value == "1");
             }
-        } else if (key == "tone_mapping") {
+        } else if (key == "bilateral_filter" || key == "bilateralFilter") {
             std::string value;
             if (lineStream >> value) {
-                config.toneMapping = parseToneMapping(value);
+                config.useBilateralFilter = (value == "true" || value == "1" || value == "yes");
+            }
+        } else if (key == "bilateral_sigma_space" || key == "bilateralSigmaSpace") {
+            float value;
+            if (lineStream >> value) {
+                config.bilateralSigmaSpace = value;
+            }
+        } else if (key == "bilateral_sigma_color" || key == "bilateralSigmaColor") {
+            float value;
+            if (lineStream >> value) {
+                config.bilateralSigmaColor = value;
             }
         }
     }
@@ -262,6 +287,12 @@ void RenderConfig::saveToYAML(const std::string& filename) const {
     
     // General settings
     file << "verbose: " << (verbose ? "true" : "false") << "\n\n";
+    
+    // Bilateral filter settings
+    file << "# Bilateral filter settings (applied to indirect lighting only)\n";
+    file << "bilateral_filter: " << (useBilateralFilter ? "true" : "false") << "\n";
+    file << "bilateral_sigma_space: " << bilateralSigmaSpace << "\n";
+    file << "bilateral_sigma_color: " << bilateralSigmaColor << "\n\n";
     
     std::cout << "Render config saved to: " << filename << std::endl;
 }

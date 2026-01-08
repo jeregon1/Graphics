@@ -63,6 +63,19 @@ plane: NX NY NZ  D
 triangle: AX AY AZ BX BY BZ CX CY CZ
 ```
 - Defines a triangle with vertices at points A, B, and C
+- Example: `triangle: 0 0 0 1 0 0 0 1 0`
+
+### Quad
+```
+quad: CX CY CZ UX UY UZ VX VY VZ
+```
+- Defines a quadrilateral (rectangle) using:
+  - Center point (CX, CY, CZ)
+  - Half-edge vector U (UX, UY, UZ)
+  - Half-edge vector V (VX, VY, VZ)
+- The quad spans from center-u-v to center+u+v
+- Useful for rectangular area lights with emission
+- Example: `quad: 0 2 0 1 0 0 0 0 1` (2x2 quad centered at (0,2,0))
 
 ### Cone
 ```

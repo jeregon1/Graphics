@@ -1,0 +1,52 @@
+background: 0 0 0
+
+camera:
+  origin: 0 0 -3.5
+  # left: -2 0 0
+  # up:    0 -1 0
+  forward: 0 0 3
+  fov: 90
+  pixels: 256 256
+
+# White diffuse material for walls and floor
+material: 0.73 0.73 0.73
+
+# Floor (y = -1)
+plane: 0 -1 0 1
+
+# Left wall (x = -1), red diffuse
+material: 0.65 0.05 0.05
+plane: -1 0 0 1
+
+# Right wall (x = 1), green diffuse
+material: 0.12 0.45 0.15
+plane: 1 0 0 1
+
+# Back wall (z = -1), white diffuse
+material: 0.73 0.73 0.73
+plane: 0 0 -1 1
+
+# Ceiling plane (non-emissive)
+material: 0.73 0.73 0.73
+plane: 0 1 0 1
+
+# Emissive quad as area light
+# Center at (0, 0.99, 0) slightly below ceiling to avoid z-fighting
+# Half-edges of 0.8 for smaller, more focused light
+material:
+  diffuse: 0.73 0.73 0.73
+  emission: 10 10 10
+
+quad: 0 0.99 0 1 0 0 0 0 1
+
+# Left sphere - white diffuse
+material: 
+  specular: 1 1 1
+sphere: -0.35 -0.7 -0.2 0.3
+
+# Right sphere - refractive (glass)
+material: 
+  diffuse: 0.9 0.9 0.9
+  transmittance: 0.9
+  n: 1.5
+sphere: 0.4 -0.65 0.2 0.35

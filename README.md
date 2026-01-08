@@ -24,8 +24,11 @@ This project is organized to support a modular ray tracing and rendering pipelin
 - **test/**: Test programs for different components and features.
   - `test_p2.cpp`: Tests for image I/O and tone mapping.
   - `test_p3.cpp`: Comprehensive tests for ray tracing, path tracing, parallelization, and acceleration structures.
+  - `test_bmp.cpp`: Tests for BMP image format I/O and conversion.
+  - `test_geometry.cpp`: Tests for geometric primitives (spheres, planes, triangles, quads).
+  - `test_intersect.cpp`: Tests for ray-object intersection calculations.
+  - `test_parallel.cpp`: Tests for parallel rendering with multi-threading.
   - `test_yaml.cpp`: Tests for YAML-based scene and configuration loading/saving.
-  - Other test files for geometry, intersection, and parallel rendering.
 
 - **assets/**: Example input images (PPM) and zipped datasets for testing and demonstration.
 
@@ -47,13 +50,15 @@ This project is organized to support a modular ray tracing and rendering pipelin
 - **Acceleration Structures**: Optional KD-tree for efficient intersection tests in complex scenes.
 - **YAML Support**: Scenes and render configs can be loaded and saved in YAML format for flexibility.
 - **Image Output**: Supports PPM and BMP formats, with tone mapping and post-processing.
+- **Bilateral Filter**: Supports addition of bilateral filter in indirect light
+for better looking and faster images.
 
 ## Getting Started
 
 1. Build the project using `make`.
 2. To render images run `./build/main --help` for usage instructions.
 3. To define scenes, use the YAML format described in `scenes/scene_yaml_format.md`.
-4. To change the rendering configuration, edit the YAML file `default_config.yaml`.
+4. To change the rendering configuration, edit the YAML file `default_pathtracing_config.yaml`.
 5. To run only tonemap operators use `./build/tonemap` for instructions.
 
 

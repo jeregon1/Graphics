@@ -1,0 +1,16 @@
+# Scene Configuration
+# Generated automatically
+
+background: 0 0 0
+
+camera:
+  origin: 0 0 -3
+  fov: 50
+  forward: 0 0 1
+  pixels: 400 400
+
+material:
+  diffuse: 0.99 0.99 0.99
+sphere: 0 0 0 0.5
+
+light: 0 2 -1 10 10 10

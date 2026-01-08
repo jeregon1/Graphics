@@ -8,12 +8,13 @@
 #include "pinholeCamera.hpp"
 #include "Image.hpp"
 #include "scene.hpp"
+#include "toneMapping.hpp"
 
 using namespace std;
 
 // Default file names
 const string DEFAULT_SCENE_FILE = "cornell_box.yaml";
-const string DEFAULT_CONFIG_FILE = "configs/default_config.yaml";
+const string DEFAULT_CONFIG_FILE = "configs/default_pathtracing_config.yaml";
 
 void printHelp(const char* programName) {
     cout << "Graphics Renderer - Cornell Box and Scene Tester\n\n";
@@ -43,7 +44,7 @@ void printHelp(const char* programName) {
     cout << "  - Output filename defaults to scene name + .ppm extension\n";
 }
 
-void run_cornell_box_test(const string& sceneFile, const string& renderConfigFile, const string& outputFile) {
+void renderImage(const string& sceneFile, const string& renderConfigFile, const string& outputFile) {
 
     // Load from scenes folder
     string scenePath = "scenes/" + sceneFile;
@@ -76,8 +77,76 @@ void run_cornell_box_test(const string& sceneFile, const string& renderConfigFil
         config = RenderConfig();
     }
 
+    // Store the desired tone mapping for later (apply once at the end)
+    ToneMappingType desiredToneMapping = config.toneMapping;
+    // Disable tone mapping in camera.render() to avoid double tone mapping
+    config.toneMapping = ToneMappingType::NONE;
+
     cout << "Rendering scene..." << endl;
-    Image image = camera.render(scene, config);
+    
+    Image image;
+    
+    // Check if bilateral filter is enabled
+    if (config.useBilateralFilter) {
+        cout << "Bilateral filter enabled (sigma_space=" << config.bilateralSigmaSpace 
+             << ", sigma_color=" << config.bilateralSigmaColor << ")" << endl;
+        cout << "Rendering direct and indirect lighting separately..." << endl;
+        
+        // Create config for direct lighting only
+        RenderConfig directConfig = config;
+        directConfig.lightingDecomposition = LightingDecomposition::DIRECT_ONLY;
+        directConfig.toneMapping = ToneMappingType::NONE;  // Disable tone mapping here
+        // Use fewer samples for direct lighting; most noise comes from indirect
+        directConfig.samplesPerPixel = std::max(1, directConfig.samplesPerPixel / 4);
+        
+        // Create config for indirect lighting only
+        RenderConfig indirectConfig = config;
+        indirectConfig.lightingDecomposition = LightingDecomposition::INDIRECT_ONLY;
+        indirectConfig.toneMapping = ToneMappingType::NONE;  // Disable tone mapping here
+        
+        // Render direct lighting
+        cout << "  Rendering direct lighting..." << endl;
+        Image directImage = camera.render(scene, directConfig);
+        
+        // Render indirect lighting
+        cout << "  Rendering indirect lighting..." << endl;
+        Image indirectImage = camera.render(scene, indirectConfig);
+        
+        // Apply bilateral filter to indirect lighting only
+        cout << "  Applying bilateral filter to indirect lighting..." << endl;
+        Image dummy;  // Temporary instance for calling the filter
+        Image indirectFiltered = dummy.bilateralFilter(indirectImage, 
+                                                        config.bilateralSigmaSpace, 
+                                                        config.bilateralSigmaColor);
+        
+        // Combine direct + filtered indirect
+        cout << "  Combining direct + filtered indirect..." << endl;
+        image = Image(directImage.width, directImage.height);
+        for (size_t i = 0; i < directImage.pixels.size(); ++i) {
+            image.pixels[i] = directImage.pixels[i] + indirectFiltered.pixels[i];
+        }
+        
+    } else {
+        // Standard rendering without bilateral filter
+        image = camera.render(scene, config);
+    }
+
+    // Apply tone mapping to the combined image (matching test_bilateral.cpp approach)
+    if (desiredToneMapping == ToneMappingType::GAMMA) {
+        ToneMapping::gamma(image, config.toneMappingGamma);
+    } else if (desiredToneMapping == ToneMappingType::CLAMP) {
+        ToneMapping::clamp(image, config.toneMappingMax);
+    } else if (desiredToneMapping == ToneMappingType::EQUALIZATION) {
+        ToneMapping::equalization(image);
+    } else if (desiredToneMapping == ToneMappingType::EQUALIZATION_GAMMA) {
+        ToneMapping::equalizationGamma(image, config.toneMappingGamma);
+    } else if (desiredToneMapping == ToneMappingType::EQUALIZATION_CLAMP) {
+        ToneMapping::equalizationClamp(image, config.toneMappingMax);
+    } else if (desiredToneMapping == ToneMappingType::CLAMP_GAMMA) {
+        ToneMapping::clampGamma(image, config.toneMappingMax, config.toneMappingGamma);
+    } else if (desiredToneMapping == ToneMappingType::REINHARD) {
+        ToneMapping::reinhard(image, config.toneMappingKey, config.toneMappingLwhite);
+    }
     
     // Use provided output filename or derive from scene filename
     string finalOutputFile = outputFile;
@@ -156,7 +225,7 @@ int main(int argc, char* argv[]) {
     }
     cout << "\n";
     
-    run_cornell_box_test(sceneFile, configFile, outputFile);
+    renderImage(sceneFile, configFile, outputFile);
     
     cout << "Rendering completed successfully.\n";
     return 0;

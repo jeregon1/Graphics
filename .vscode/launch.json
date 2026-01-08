@@ -36,8 +36,8 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/test_bilateral",
-            "args": [],
+            "program": "${workspaceFolder}/build/main",
+            "args": ["-s", "cornell_box_bright_point.yaml", "-c", "configs/default_pathtracing_config.yaml", "-o", "test_outputs/emissive_ceiling/bright_test.ppm"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -53,12 +53,6 @@
             "miDebuggerPath": "/usr/bin/gdb",
             "logging": {
                 "engineLogging": true
-            },
-            "pipeTransport": {
-                "pipeCwd": "",
-                "pipeProgram": "bash",
-                "pipeArgs": ["-c"],
-                "debuggerPath": "/usr/bin/gdb"
             }
         }
     ]

@@ -1,0 +1,26 @@
+# Render Configuration File
+
+algorithm: photon_mapping  # ray_tracing, path_tracing, photon_mapping
+samples_per_pixel: 128 
+mode: parallel  # parallel, sequential
+max_bounces: 6
+
+# Parallel rendering settings (used when mode is parallel)
+region_type: column  # pixel, line, column, square
+region_size: 5        # Number of lines, columns or rectangle size per thread
+num_threads: 12
+queue_type: std_queue  # std_queue
+
+# Photon mapping settings (used when algorithm is photon_mapping)
+k_photons: 30  # Reduced for faster testing
+radius: .2      # Increased for better coverage
+n_paths: 10000  # Number of photons to emit
+kernel: epanechnikov  # triangular, gaussian, epanechnikov, quartic, tripeso, tricubo, coseno, logistico, sigmoide
+
+verbose: true  # Enable verbose output
+
+tone_mapping: equalization_gamma 3  # none, equalization, equalization_gamma, equalization_clamp, gamma, clamp_gamma,  reinhard
+# tone_mapping_max: 1.0  # Maximum value for clamps
+# tone_mapping_gamma: 2.2  # Gamma value for gamma
+# tone_mapping_key: 0.18  # Key value for reinhard
+# tone_mapping_lwhite: 1.0  # White level for reinhard

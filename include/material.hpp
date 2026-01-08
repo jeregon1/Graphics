@@ -33,22 +33,12 @@ public:
         
         // Normalize material coefficients to ensure physical validity
         normalize();
-        
-        // Emit warning if material needed normalization
-        if (needsNormalization) {
-            std::cerr << "Warning: Material properties out of range. Auto-normalized:" << std::endl
-                      << "  diffuse: " << diffuse << std::endl
-                      << "  specular: " << specular << std::endl
-                      << "  transmittance: " << transmittance << std::endl;
-        }
     }
 
-    // Normalize material coefficients to ensure physical validity
     void normalize();
 
     std::optional<Direction> refract(const Direction& wo, const Direction& normal) const;
 
-    // Validate material: ensure kd + ks + kt < 1 for all RGB channels and
     bool isPhysicallyValid() const {
         bool achromaticSpecular = (specular.r == specular.g && specular.g == specular.b);
         bool achromaticTransmittance = (transmittance.r == transmittance.g && transmittance.g == transmittance.b);
@@ -59,18 +49,14 @@ public:
         return achromaticSpecular && achromaticTransmittance && !emissionConflict && sumValid;
     }
 
-    // Evaluate BSDF according to: fr(x,ωi,ωo) = kd(1/π) + ks(δωr(ωi))/(n·ωi) + kt(δωt(ωi))/(n·ωi)
-    // Note: Delta functions (specular reflection/transmittance) are handled through importance sampling in path tracing
     RGB evaluateBSDF(const Direction& wi, const Direction& wo, const Direction& normal) const;
 
-    // Stub for test compatibility
     RGB evaluateBSDFWithDeltas(const Direction& wi, const Direction& wo, const Direction& normal, bool& isSpecular, bool& isRefraction) const {
         isSpecular = false;
         isRefraction = false;
         return getDiffuse() / M_PI;
     }
 
-    // Get perfect reflection direction
     Direction getPerfectReflection(const Direction& wo, const Direction& normal) const {
         return wo - normal * (2.0f * wo.dot(normal));
     }
@@ -79,22 +65,18 @@ public:
         return emission.max() > EPS;
     }
 
-    // Check if material is purely diffuse (plastic example)
     bool isPurelyDiffuse() const {
         return specular.max() < EPS && transmittance.max() < EPS;
     }
 
-    // Check if material is plastic (diffuse + specular, no transmittance)
     bool isPlastic() const {
         return transmittance.max() < EPS && diffuse.max() > EPS && specular.max() > EPS;
     }
 
-    // Check if material is dielectric (specular + transmittance, no diffuse)
     bool isDielectric() const {
         return diffuse.max() < EPS && (specular.max() > EPS || transmittance.max() > EPS);
     }
 
-    // Factory methods for common material types
     static Material createPurelyDiffuse(const RGB& color) {
         return Material(color, RGB(0, 0, 0), RGB(0, 0, 0));
     }

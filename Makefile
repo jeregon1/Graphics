@@ -2,14 +2,14 @@
 # Compiler
 CXX = g++
 # Compiler flags
-CXXFLAGS =  -O0 -g -std=c++20 -Wall -Wextra -Iinclude
+CXXFLAGS =  -O2 -std=c++20 -Wall -Wextra -Iinclude
 
 # Core library sources (exclude CLI programs and main)
 LIB_SRCS = $(filter-out src/tonemap_cli.cpp src/pathtracer_cli.cpp src/main.cpp, $(wildcard src/*.cpp))
 LIB_OBJS = $(LIB_SRCS:src/%.cpp=build/%.o)
 
 # Individual test executables
-TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/main build/test_geometry build/test_intersect build/test_parallel build/test_yaml build/test_bilateral build/test_bilateral_time build/test_bilateral_separation build/test_phottonmapping build/test_photon_scaling build/test_photon_k_scaling build/test_emissive_ceiling
+TEST_EXECUTABLES = build/test_p2 build/test_p3 build/test_bmp build/main build/test_geometry build/test_intersect build/test_parallel build/test_yaml
 
 # CLI executables
 TONEMAP_SRCS = $(LIB_SRCS) src/tonemap_cli.cpp
@@ -48,27 +48,6 @@ build/test_parallel: test/test_parallel.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 build/test_yaml: test/test_yaml.cpp $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
-build/test_bilateral: test/test_bilateral.cpp $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
-build/test_bilateral_time: test/test_bilateral_time.cpp $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
-build/test_bilateral_separation: test/test_bilateral_separation.cpp $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
-build/test_phottonmapping: test/test_phottonmapping.cpp $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
-build/test_photon_scaling: test/test_photon_scaling.cpp $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
-build/test_photon_k_scaling: test/test_photon_k_scaling.cpp $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^
-
-build/test_emissive_ceiling: test/test_emissive_ceiling.cpp $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Build the unified test executable
@@ -120,18 +99,6 @@ test-intersect: build/test_intersect
 test-yaml: build/test_yaml
 	./build/test_yaml
 
-test-bilateral: build/test_bilateral
-	./build/test_bilateral
-
-test-bilateral-time: build/test_bilateral_time
-	./build/test_bilateral_time
-
-test-bilateral-separation: build/test_bilateral_separation
-	./build/test_bilateral_separation
-
-test-phottonmapping: build/test_phottonmapping
-	./build/test_phottonmapping
-
 main: build/main
 	./build/main
 
@@ -156,15 +123,6 @@ test-cli: $(CLI_EXECS)
 		echo "Sample scene file scenes/simple_test.yaml not found"; \
 	fi
 
-test-phottonmapping: build/test_phottonmapping
-	./build/test_phottonmapping
-
-test-photon-scaling: build/test_photon_scaling
-	./build/test_photon_scaling
-
-test-photon-k-scaling: build/test_photon_k_scaling
-	./build/test_photon_k_scaling
-
 # Test path tracer specifically
 test-pathtracer: $(PATHTRACER_EXEC)
 	@echo "Testing path tracer with reflectance properties..."
@@ -178,4 +136,4 @@ test-pathtracer: $(PATHTRACER_EXEC)
 		echo "No scene files found in scenes/ directory"; \
 	fi
 
-.PHONY: all clean test test-p2 test-p3 test-parallel test-cornell test-bmp test-geometry test-intersect test-yaml test-bilateral test-bilateral-time test-bilateral-separation test-phottonmapping test-photon-scaling test-photon-k-scaling test-cli test-pathtracer
+.PHONY: all clean test test-p2 test-p3 test-parallel test-bmp test-geometry test-intersect test-yaml test-cli test-pathtracer

@@ -428,17 +428,7 @@ Scene& Scene::defaultScene() {
     return scene;
 }
 
-// Acceleration structure management methods
-void Scene::buildAccelerationStructure(AccelerationStructure type) {
-    currentAcceleration_ = type;
-    accelerationStructure_ = AccelerationStructureFactory::create(type);
-    accelerationStructure_->build(objects);
-    accelerationBuilt_ = true;
-}
-
-
-// YAML parsing helper functions
-auto parseConeOrCylinder = [](std::ifstream& file, Point& base, Direction& axis, float& radius, float& height) {
+void Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) {
     std::string line;
     while (std::getline(file, line)) {
         size_t first = line.find_first_not_of(" \t");
@@ -625,6 +615,16 @@ std::optional<std::pair<Scene, std::optional<PinholeCamera>>> Scene::fromYAML(co
                 currentMaterial
             ));
         }
+        else if (keyword == "quad:") {
+            float cx, cy, cz, ux, uy, uz, vx, vy, vz;
+            iss >> cx >> cy >> cz >> ux >> uy >> uz >> vx >> vy >> vz;
+            scene.addObject(std::make_shared<Quad>(
+                Point(cx, cy, cz),
+                Direction(ux, uy, uz),
+                Direction(vx, vy, vz),
+                currentMaterial
+            ));
+        }
         else if (keyword == "cone:" || keyword == "cylinder:") {
             Point base;
             Direction axis;
@@ -710,6 +710,14 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
             file << "triangle: " << a.x << " " << a.y << " " << a.z << " "
                  << b.x << " " << b.y << " " << b.z << " "
                  << c.x << " " << c.y << " " << c.z << "\n";
+        }
+        else if (auto quad = std::dynamic_pointer_cast<Quad>(object)) {
+            Point center = quad->center;
+            Direction u = quad->u;
+            Direction v = quad->v;
+            file << "quad: " << center.x << " " << center.y << " " << center.z << " "
+                 << u.x << " " << u.y << " " << u.z << " "
+                 << v.x << " " << v.y << " " << v.z << "\n";
         }
         // Add other object types as needed
         else if (auto cone = std::dynamic_pointer_cast<Cone>(object)) {

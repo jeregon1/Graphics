@@ -154,6 +154,11 @@ struct RenderConfig {
     float toneMappingGamma = DEFAULT_TONE_MAPPING_GAMMA;  // For gamma operations
     float toneMappingKey = DEFAULT_TONE_MAPPING_KEY;       // For Reinhard
     float toneMappingLwhite = DEFAULT_TONE_MAPPING_LWHITE;// For Reinhard
+    
+    // Bilateral filter configuration (only applied to indirect lighting)
+    bool useBilateralFilter = false;  // Enable bilateral filtering on indirect lighting
+    float bilateralSigmaSpace = 3.0f;  // Spatial range for bilateral filter
+    float bilateralSigmaColor = 0.2f;  // Color range for bilateral filter
 
     // Constructors for convenience
     RenderConfig(RenderingAlgorithm alg = RenderingAlgorithm::RAY_TRACING, unsigned samplesPerPixel = 4, RenderingMode mode = RenderingMode::PARALLEL) 
@@ -178,6 +183,9 @@ struct RenderConfig {
                ", queueType: " + ::toString(queueType) +
                ", samplesPerPixel: " + std::to_string(samplesPerPixel) +
                ", toneMapping: " + ::toString(toneMapping) +
+               ", bilateralFilter: " + (useBilateralFilter ? "true" : "false") +
+               (useBilateralFilter ? (std::string(" (space=") + std::to_string(bilateralSigmaSpace) + 
+                                     ", color=" + std::to_string(bilateralSigmaColor) + ")") : "") +
                ", verbose: " + (verbose ? "true" : "false") +
                ")";
     }
