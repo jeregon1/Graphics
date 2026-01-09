@@ -21,6 +21,6 @@ tone_mapping_max: 1.0  # Maximum value for clamps
 
 # Bilateral filter settings (applied to indirect lighting only)
 # Set to true to enable noise reduction on indirect lighting
-# bilateral_filter: false
-# bilateral_sigma_space: 3.0    # Spatial range (pixel distance)
-# bilateral_sigma_color: 0.2    # Color range (color similarity)
+bilateral_filter: true
+bilateral_sigma_space: 3.0    # Spatial range (pixel distance)
+bilateral_sigma_color: 0.2    # Color range (color similarity)

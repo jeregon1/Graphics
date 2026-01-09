@@ -413,10 +413,12 @@ Scene& Scene::defaultScene() {
         // Right wall (x = 1)
         s.addObject(std::make_shared<Plane>(Direction(1, 0, 0), greenDiffuse, 1));
         // Back wall (z = -3)
-        s.addObject(std::make_shared<Plane>(Direction(0, 0, 1), whiteDiffuse, 1));
+        s.addObject(std::make_shared<Plane>(Direction(0, 0, -1), whiteDiffuse, 3));
 
-        // Spheres
-        s.addObject(std::make_shared<Sphere>(Point(-0.5, -0.7, 0.25), 0.3, magentaDiffuse));
+        // Magenta sphere on left
+        s.addObject(std::make_shared<Sphere>(Point(-0.5, -0.7, -0.25), 0.3, magentaDiffuse));
+
+        // Blue sphere on right
         s.addObject(std::make_shared<Sphere>(Point(0.5, -0.7, -0.25), 0.3, blueDiffuse));
 
         // Point light at ceiling center
@@ -427,33 +429,6 @@ Scene& Scene::defaultScene() {
     
     return scene;
 }
-
-void Scene::generarMapaFotones(const int nPaths, unsigned maxBounces) {
-    std::string line;
-    while (std::getline(file, line)) {
-        size_t first = line.find_first_not_of(" \t");
-        if (first == std::string::npos || line[first] == '#') continue;
-        if (first == 0) {
-            file.seekg(-(long)line.length() - 1, std::ios::cur);
-            break;
-        }
-        line = line.substr(first);
-        std::istringstream lineStream(line);
-        std::string property;
-        lineStream >> property;
-        if (property == "base:") {
-            float x, y, z;
-            if (lineStream >> x >> y >> z) base = Point(x, y, z);
-        } else if (property == "axis:") {
-            float x, y, z;
-            if (lineStream >> x >> y >> z) axis = Direction(x, y, z);
-        } else if (property == "radius:") {
-            lineStream >> radius;
-        } else if (property == "height:") {
-            lineStream >> height;
-        }
-    }
-};
 
 auto parseMaterial = [](std::istringstream& iss, std::ifstream& file) -> Material {
     // Try to read simple format first (RGB values)
@@ -552,6 +527,33 @@ auto parseCamera = [](std::ifstream& file) -> PinholeCamera {
         return PinholeCamera(origin, fov, width, height, forward);
     else
         return PinholeCamera(origin, up, left, forward, width, height);
+};
+
+auto parseConeOrCylinder = [](std::ifstream& file, Point& base, Direction& axis, float& radius, float& height) {
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t first = line.find_first_not_of(" \t");
+        if (first == std::string::npos || line[first] == '#') continue;
+        if (first == 0) {
+            file.seekg(-(long)line.length() - 1, std::ios::cur);
+            break;
+        }
+        line = line.substr(first);
+        std::istringstream lineStream(line);
+        std::string property;
+        lineStream >> property;
+        if (property == "base:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) base = Point(x, y, z);
+        } else if (property == "axis:") {
+            float x, y, z;
+            if (lineStream >> x >> y >> z) axis = Direction(x, y, z);
+        } else if (property == "radius:") {
+            lineStream >> radius;
+        } else if (property == "height:") {
+            lineStream >> height;
+        }
+    }
 };
 
 // YAML scene loader - returns scene and optional camera
@@ -761,4 +763,21 @@ bool Scene::saveToYAML(const std::string& filename, const PinholeCamera* camera)
         std::cout << "Scene saved to: " << filename << std::endl;
 
     return true;
+}
+
+void Scene::buildAccelerationStructure(AccelerationStructure type) {
+    currentAcceleration_ = type;
+    accelerationBuilt_ = false;
+    
+    if (type == AccelerationStructure::NONE) {
+        accelerationStructure_.reset();
+        return;
+    }
+    
+    accelerationStructure_ = AccelerationStructureFactory::create(type);
+    if (accelerationStructure_) {
+        accelerationStructure_->build(objects);
+        accelerationBuilt_ = true;
+        std::cout << accelerationStructure_->getStats() << std::endl;
+    }
 }

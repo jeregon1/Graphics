@@ -12,15 +12,19 @@ num_threads: 12
 queue_type: std_queue  # std_queue
 
 # Photon mapping settings (used when algorithm is photon_mapping)
-k_photons: 30  # Reduced for faster testing
+k_photons: 100  # Reduced for faster testing
 radius: .2      # Increased for better coverage
-n_paths: 10000  # Number of photons to emit
+n_paths: 100000  # Number of photons to emit
 kernel: epanechnikov  # triangular, gaussian, epanechnikov, quartic, tripeso, tricubo, coseno, logistico, sigmoide
 
 verbose: true  # Enable verbose output
 
-tone_mapping: equalization_gamma 3  # none, equalization, equalization_gamma, equalization_clamp, gamma, clamp_gamma,  reinhard
+tone_mapping: equalization_gamma 2.2  # none, equalization, equalization_gamma, equalization_clamp, gamma, clamp_gamma,  reinhard
 # tone_mapping_max: 1.0  # Maximum value for clamps
 # tone_mapping_gamma: 2.2  # Gamma value for gamma
 # tone_mapping_key: 0.18  # Key value for reinhard
 # tone_mapping_lwhite: 1.0  # White level for reinhard
+
+bilateral_filter: true
+bilateral_sigma_space: 3.0    # Spatial range (pixel distance)
+bilateral_sigma_color: 0.2    # Color range (color similarity)

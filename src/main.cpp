@@ -14,7 +14,7 @@ using namespace std;
 
 // Default file names
 const string DEFAULT_SCENE_FILE = "cornell_box.yaml";
-const string DEFAULT_CONFIG_FILE = "configs/default_pathtracing_config.yaml";
+const string DEFAULT_CONFIG_FILE = "configs/default_config.yaml";
 
 void printHelp(const char* programName) {
     cout << "Graphics Renderer - Cornell Box and Scene Tester\n\n";
